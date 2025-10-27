@@ -42,7 +42,7 @@ dependencies = [
   "marko==2.1.2",
   "networkx==3.0",
   "pydantic[email]>=2.9.2",
-  "scipy==1.10.0",
+  "scipy>=1.11.0",
   "smart-open==7.0.5",
   "sqlfluff==3.2.0",
   "tiktoken==0.7.0",
