@@ -25,6 +25,7 @@ help:
 	@echo ""
 	@echo "🛠️  Utilities:"
 	@echo "  clean                  - Remove coverage reports and cache files"
+	@echo "  check-license-headers  - Check if all files have license headers"
 	@echo "  update-license-headers - Add license headers to all files"
 	@echo ""
 	@echo "═════════════════════════════════════════════════════════════"
@@ -49,31 +50,35 @@ check-all-fix: format lint-fix
 
 format:
 	@echo "📐 Formatting code with ruff..."
-	uv run ruff format
+	uv run ruff format src/ tests/ scripts/
 	@echo "✅ Formatting complete!"
 
 format-check:
 	@echo "📐 Checking code formatting with ruff..."
-	uv run ruff format --check
+	uv run ruff format --check src/ tests/ scripts/
 	@echo "✅ Formatting check complete! Run 'make format' to auto-fix issues."
 
 lint:
 	@echo "🔍 Linting code with ruff..."
-	uv run ruff check --output-format=full
+	uv run ruff check --output-format=full src/ tests/ scripts/
 	@echo "✅ Linting complete! Run 'make lint-fix' to auto-fix issues."
 
 lint-fix:
 	@echo "🔍 Fixing linting issues with ruff..."
-	uv run ruff check --fix
+	uv run ruff check --fix src/ tests/ scripts/
 	@echo "✅ Linting with autofix complete!"
 
 test:
 	@echo "🧪 Running unit tests..."
 	uv run pytest
 
+check-license-headers:
+	@echo "🔍 Checking license headers in all files..."
+	uv run python $(REPO_PATH)/scripts/update_license_headers.py --check
+
 update-license-headers:
 	@echo "🔍 Updating license headers in all files..."
-	uv run python $(REPO_PATH)/scripts/add-license-headers.py
+	uv run python $(REPO_PATH)/scripts/update_license_headers.py
 
 install:
 	@echo "📦 Installing project dependencies..."
@@ -85,4 +90,4 @@ install-dev:
 	uv sync --all-extras
 	@echo "✅ Dev installation complete!"
 
-.PHONY: clean coverage format format-check lint lint-fix test update-license-headers check-all check-all-fix install install-dev
+.PHONY: clean coverage format format-check lint lint-fix test check-license-headers update-license-headers check-all check-all-fix install install-dev
