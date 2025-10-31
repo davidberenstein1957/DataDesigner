@@ -15,5 +15,5 @@ jobs:
         with:
           version: "0.9.5"
       - run: uv python install
-      - run: uv sync
+      - run: uv sync --group docs
       - run: uv run mkdocs gh-deploy --force --clean --verbose

@@ -741,13 +741,6 @@ dependencies = [
     { name = "litellm" },
     { name = "lxml" },
     { name = "marko" },
-    { name = "mkdocs" },
-    { name = "mkdocs-gen-files" },
-    { name = "mkdocs-literate-nav" },
-    { name = "mkdocs-material" },
-    { name = "mkdocs-section-index" },
-    { name = "mkdocstrings" },
-    { name = "mkdocstrings-python" },
     { name = "networkx" },
     { name = "numpy" },
     { name = "pandas" },
@@ -775,6 +768,15 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-httpx" },
 ]
+docs = [
+    { name = "mkdocs" },
+    { name = "mkdocs-gen-files" },
+    { name = "mkdocs-literate-nav" },
+    { name = "mkdocs-material" },
+    { name = "mkdocs-section-index" },
+    { name = "mkdocstrings" },
+    { name = "mkdocstrings-python" },
+]
 notebooks = [
     { name = "ipykernel" },
     { name = "jupyter" },
@@ -796,13 +798,6 @@ requires-dist = [
     { name = "litellm", specifier = "==1.73.6" },
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "marko", specifier = "==2.1.2" },
-    { name = "mkdocs", specifier = ">=1.6.1" },
-    { name = "mkdocs-gen-files", specifier = ">=0.5.0" },
-    { name = "mkdocs-literate-nav", specifier = ">=0.6.2" },
-    { name = "mkdocs-material", specifier = ">=9.6.22" },
-    { name = "mkdocs-section-index", specifier = ">=0.3.10" },
-    { name = "mkdocstrings", specifier = ">=0.30.1" },
-    { name = "mkdocstrings-python", specifier = ">=1.18.2" },
     { name = "networkx", specifier = "==3.0" },
     { name = "numpy", specifier = ">=1.23.5" },
     { name = "pandas", specifier = ">=1.5.3" },
@@ -829,6 +824,15 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-httpx", specifier = ">=0.35.0" },
+]
+docs = [
+    { name = "mkdocs", specifier = ">=1.6.1" },
+    { name = "mkdocs-gen-files", specifier = ">=0.5.0" },
+    { name = "mkdocs-literate-nav", specifier = ">=0.6.2" },
+    { name = "mkdocs-material", specifier = ">=9.6.22" },
+    { name = "mkdocs-section-index", specifier = ">=0.3.10" },
+    { name = "mkdocstrings", specifier = ">=0.30.1" },
+    { name = "mkdocstrings-python", specifier = ">=1.18.2" },
 ]
 notebooks = [
     { name = "ipykernel", specifier = ">=6.29.0" },
