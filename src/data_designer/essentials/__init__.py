@@ -3,6 +3,7 @@
 
 from ..config.analysis.column_profilers import JudgeScoreProfilerConfig
 from ..config.columns import (
+    CustomColumnConfig,
     DataDesignerColumnType,
     ExpressionColumnConfig,
     LLMCodeColumnConfig,
