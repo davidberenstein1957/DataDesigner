@@ -13,7 +13,7 @@ import pyarrow.parquet as pq
 from pydantic import BaseModel, Field
 
 from .errors import InvalidConfigError, InvalidFileFormatError, InvalidFilePathError
-from .utils.io_helpers import VALID_DATASET_FILE_EXTENSIONS
+from .utils.io_helpers import VALID_DATASET_FILE_EXTENSIONS, validate_path_contains_files_of_type
 
 if TYPE_CHECKING:
     from .seed import SeedDatasetReference
@@ -32,7 +32,15 @@ class DatastoreSettings(BaseModel):
 
 
 def get_file_column_names(file_path: Union[str, Path], file_type: str) -> list[str]:
-    """Extract column names based on file type."""
+    """Extract column names based on file type. Supports glob patterns like '../path/*.parquet'."""
+    file_path = Path(file_path)
+    if "*" in str(file_path):
+        matching_files = sorted(file_path.parent.glob(file_path.name))
+        if not matching_files:
+            raise InvalidFilePathError(f"🛑 No files found matching pattern: {str(file_path)!r}")
+        logger.debug(f"0️⃣ Using the first matching file in {str(file_path)!r} to determine column names in seed dataset")
+        file_path = matching_files[0]
+
     if file_type == "parquet":
         try:
             schema = pq.read_schema(file_path)
@@ -123,11 +131,14 @@ def _fetch_seed_dataset_column_names_from_datastore(
 
 
 def _fetch_seed_dataset_column_names_from_local_file(dataset_path: str | Path) -> list[str]:
-    dataset_path = _validate_dataset_path(dataset_path)
-    return get_file_column_names(dataset_path, dataset_path.suffix.lower()[1:])
+    dataset_path = _validate_dataset_path(dataset_path, allow_glob_pattern=True)
+    return get_file_column_names(dataset_path, str(dataset_path).split(".")[-1])
 
 
-def _validate_dataset_path(dataset_path: Union[str, Path]) -> Path:
+def _validate_dataset_path(dataset_path: Union[str, Path], allow_glob_pattern: bool = False) -> Path:
+    if allow_glob_pattern and "*" in str(dataset_path):
+        validate_path_contains_files_of_type(dataset_path, str(dataset_path).split(".")[-1])
+        return Path(dataset_path)
     if not Path(dataset_path).is_file():
         raise InvalidFilePathError("🛑 To upload a dataset to the datastore, you must provide a valid file path.")
     if not Path(dataset_path).name.endswith(tuple(VALID_DATASET_FILE_EXTENSIONS)):
