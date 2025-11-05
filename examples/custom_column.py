@@ -42,7 +42,7 @@ builder.add_column(
             "finance",
             "technology",
         ]
-    }
+    },
 )
 
 builder.add_column(
@@ -53,9 +53,11 @@ builder.add_column(
     system_prompt=SYSTEM_PROMPT,
 )
 
+
 def generator_function(df: pd.DataFrame) -> pd.DataFrame:
     df["length_frac"] = df["text"].apply(lambda x: len(x) / 1000)
     return df
+
 
 builder.add_column(
     CustomColumnConfig(
