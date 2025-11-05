@@ -31,8 +31,23 @@ class CustomColumnGenerator(ColumnGenerator[CustomColumnConfig]):
         logger.info(f"🛠️ Generating custom column {self.config.name!r} with {len(data)} records")
         logger.info(f"  |-- generator function: {self.config.generator_function.__name__}")
 
+        original_columns = set(data.columns)
         try:
             result = self.config.generator_function(data)
+
+            # Check if custom column is the only one that was added
+            diff_columns = set(result.columns) - original_columns
+            if len(diff_columns) == 0:
+                raise DataDesignerRuntimeError(
+                    f"Custom column generator {self.config.generator_function.__name__} added no columns. "
+                    f"Expected column {self.config.name!r} to be added by this generator."
+                )
+            elif diff_columns != {self.config.name}:
+                diff_columns_str = ", ".join(diff_columns - {self.config.name})
+                raise DataDesignerRuntimeError(
+                    f"Custom column generator {self.config.generator_function.__name__} added unexpected columns: {diff_columns_str}. "
+                    f"Expected only column {self.config.name!r} to be added by this generator."
+                )
         except Exception as e:
             raise DataDesignerRuntimeError(f"Error generating custom column {self.config.name!r}: {e}")
 
