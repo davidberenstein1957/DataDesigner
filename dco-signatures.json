@@ -31,6 +31,14 @@
       "created_at": "2025-11-11T22:32:31Z",
       "repoId": 1077662591,
       "pullRequestNo": 26
+    },
+    {
+      "name": "anastasia-nesterenko",
+      "id": 814037,
+      "comment_id": 3523232983,
+      "created_at": "2025-11-12T18:04:16Z",
+      "repoId": 1077662591,
+      "pullRequestNo": 29
     }
   ]
 }
