@@ -7,6 +7,7 @@ from typing_extensions import TypeAlias
 
 from ..plugin_manager import PluginManager
 from .column_configs import (
+    EmbeddingColumnConfig,
     ExpressionColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
@@ -23,6 +24,7 @@ from .utils.type_helpers import SAMPLER_PARAMS, create_str_enum_from_discriminat
 plugin_manager = PluginManager()
 
 ColumnConfigT: TypeAlias = Union[
+    EmbeddingColumnConfig,
     ExpressionColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
@@ -42,6 +44,7 @@ DataDesignerColumnType = create_str_enum_from_discriminated_type_union(
 
 COLUMN_TYPE_EMOJI_MAP = {
     "general": "⚛️",  # possible analysis column type
+    DataDesignerColumnType.EMBEDDING: "🧬",
     DataDesignerColumnType.EXPRESSION: "🧩",
     DataDesignerColumnType.LLM_CODE: "💻",
     DataDesignerColumnType.LLM_JUDGE: "⚖️",
@@ -60,6 +63,7 @@ def column_type_used_in_execution_dag(column_type: Union[str, DataDesignerColumn
     """Return True if the column type is used in the workflow execution DAG."""
     column_type = resolve_string_enum(column_type, DataDesignerColumnType)
     dag_column_types = {
+        DataDesignerColumnType.EMBEDDING,
         DataDesignerColumnType.EXPRESSION,
         DataDesignerColumnType.LLM_CODE,
         DataDesignerColumnType.LLM_JUDGE,
@@ -75,6 +79,7 @@ def column_type_is_llm_generated(column_type: Union[str, DataDesignerColumnType]
     """Return True if the column type is an LLM-generated column."""
     column_type = resolve_string_enum(column_type, DataDesignerColumnType)
     llm_generated_column_types = {
+        DataDesignerColumnType.EMBEDDING,
         DataDesignerColumnType.LLM_TEXT,
         DataDesignerColumnType.LLM_CODE,
         DataDesignerColumnType.LLM_STRUCTURED,
@@ -101,6 +106,8 @@ def get_column_config_from_kwargs(name: str, column_type: DataDesignerColumnType
         Data Designer column object of the appropriate type.
     """
     column_type = resolve_string_enum(column_type, DataDesignerColumnType)
+    if column_type == DataDesignerColumnType.EMBEDDING:
+        return EmbeddingColumnConfig(name=name, **kwargs)
     if column_type == DataDesignerColumnType.LLM_TEXT:
         return LLMTextColumnConfig(name=name, **kwargs)
     if column_type == DataDesignerColumnType.LLM_CODE:
@@ -131,6 +138,7 @@ def get_column_display_order() -> list[DataDesignerColumnType]:
         DataDesignerColumnType.LLM_CODE,
         DataDesignerColumnType.LLM_STRUCTURED,
         DataDesignerColumnType.LLM_JUDGE,
+        DataDesignerColumnType.EMBEDDING,
         DataDesignerColumnType.VALIDATION,
         DataDesignerColumnType.EXPRESSION,
     ]

@@ -9,9 +9,9 @@ import logging
 from typing import Any
 
 from litellm.types.router import DeploymentTypedDict, LiteLLM_Params
-from litellm.types.utils import ModelResponse
+from litellm.types.utils import EmbeddingResponse, ModelResponse, TextCompletionResponse
 
-from data_designer.config.models import ModelConfig, ModelProvider
+from data_designer.config.models import ModelConfig, ModelProvider, ModelType
 from data_designer.engine.model_provider import ModelProviderRegistry
 from data_designer.engine.models.errors import (
     GenerationValidationFailureError,
@@ -61,6 +61,10 @@ class ModelFacade:
     def usage_stats(self) -> ModelUsageStats:
         return self._usage_stats
 
+    @property
+    def model_type(self) -> ModelType:
+        return self._model_config.model_type
+
     def completion(self, messages: list[dict[str, str]], skip_usage_tracking: bool = False, **kwargs) -> ModelResponse:
         logger.debug(
             f"Prompting model {self.model_name!r}...",
@@ -86,6 +90,81 @@ class ModelFacade:
         finally:
             if not skip_usage_tracking:
                 self._track_usage(response)
+
+    def text_completion(self, prompt: str, skip_usage_tracking: bool = False, **kwargs) -> TextCompletionResponse:
+        """Execute a raw text completion (non-chat) request.
+
+        Args:
+            prompt: The input text prompt for completion.
+            skip_usage_tracking: Whether to skip tracking usage statistics.
+            **kwargs: Additional arguments to pass to the model.
+
+        Returns:
+            TextCompletionResponse from LiteLLM.
+        """
+        logger.debug(
+            f"Prompting model {self.model_name!r} for text completion...",
+            extra={"model": self.model_name, "prompt": prompt, "sensitive": True},
+        )
+        response = None
+        if self.model_provider.extra_body:
+            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **self.model_provider.extra_body}
+        try:
+            response = self._router.text_completion(self.model_name, prompt, **kwargs)
+            logger.debug(
+                f"Received text completion from model {self.model_name!r}",
+                extra={
+                    "model": self.model_name,
+                    "response": response,
+                    "text": response.choices[0].text if response.choices else None,
+                    "usage": self._usage_stats.model_dump(),
+                },
+            )
+            return response
+        except Exception as e:
+            raise e
+        finally:
+            if not skip_usage_tracking:
+                self._track_usage(response)
+
+    def embedding(self, input_text: str | list[str], skip_usage_tracking: bool = False, **kwargs) -> EmbeddingResponse:
+        """Generate embeddings for the given input text(s).
+
+        Args:
+            input_text: Single string or list of strings to embed.
+            skip_usage_tracking: Whether to skip tracking usage statistics.
+            **kwargs: Additional arguments to pass to the model.
+
+        Returns:
+            EmbeddingResponse from LiteLLM containing embedding vectors.
+        """
+        logger.debug(
+            f"Generating embeddings with model {self.model_name!r}...",
+            extra={
+                "model": self.model_name,
+                "input_count": 1 if isinstance(input_text, str) else len(input_text),
+                "sensitive": True,
+            },
+        )
+        response = None
+        if self.model_provider.extra_body:
+            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **self.model_provider.extra_body}
+        try:
+            response = self._router.embedding(model=self.model_name, input=input_text, **kwargs)
+            logger.debug(
+                f"Received embeddings from model {self.model_name!r}",
+                extra={
+                    "model": self.model_name,
+                    "embedding_count": len(response.data) if response.data else 0,
+                    "usage": self._usage_stats.model_dump(),
+                },
+            )
+            return response
+        except Exception as e:
+            raise e
+        finally:
+            if not skip_usage_tracking:
+                self._track_usage_from_embedding(response)
 
     @catch_llm_exceptions
     def generate(
@@ -207,7 +286,7 @@ class ModelFacade:
             "litellm_params": litellm_params.model_dump(),
         }
 
-    def _track_usage(self, response: ModelResponse | None) -> None:
+    def _track_usage(self, response: ModelResponse | TextCompletionResponse | None) -> None:
         if response is None:
             self._usage_stats.extend(request_usage=RequestUsageStats(successful_requests=0, failed_requests=1))
             return
@@ -220,6 +299,19 @@ class ModelFacade:
                 token_usage=TokenUsageStats(
                     prompt_tokens=response.usage.prompt_tokens,
                     completion_tokens=response.usage.completion_tokens,
+                ),
+                request_usage=RequestUsageStats(successful_requests=1, failed_requests=0),
+            )
+
+    def _track_usage_from_embedding(self, response: EmbeddingResponse | None) -> None:
+        if response is None:
+            self._usage_stats.extend(request_usage=RequestUsageStats(successful_requests=0, failed_requests=1))
+            return
+        if response.usage is not None and response.usage.prompt_tokens is not None:
+            self._usage_stats.extend(
+                token_usage=TokenUsageStats(
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=0,
                 ),
                 request_usage=RequestUsageStats(successful_requests=1, failed_requests=0),
             )

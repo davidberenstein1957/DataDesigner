@@ -4,9 +4,10 @@
 from collections import namedtuple
 from unittest.mock import patch
 
-from litellm.types.utils import Choices, Message, ModelResponse
+from litellm.types.utils import Choices, EmbeddingResponse, Message, ModelResponse, TextCompletionResponse, Usage
 import pytest
 
+from data_designer.config.models import ModelType
 from data_designer.engine.models.errors import ModelGenerationValidationFailureError
 from data_designer.engine.models.facade import ModelFacade
 from data_designer.engine.models.parsers.errors import ParserException
@@ -172,3 +173,176 @@ def test_completion_with_extra_body(mock_router_completion, stub_model_facade):
     completion_extra_body = {"some_completion_key": "some_completion_value", "some_custom_key": "some_different_value"}
     _ = stub_model_facade.completion(messages, extra_body=completion_extra_body)
     assert mock_router_completion.call_args[1] == {"extra_body": {**completion_extra_body, **custom_extra_body}}
+
+
+def test_model_type_property(stub_model_facade):
+    assert stub_model_facade.model_type == ModelType.CHAT
+
+
+@pytest.mark.parametrize(
+    "skip_usage_tracking",
+    [
+        False,
+        True,
+    ],
+)
+def test_text_completion_success(stub_model_facade, skip_usage_tracking):
+    expected_text = "This is a test completion"
+    stub_response = TextCompletionResponse(
+        choices=[{"text": expected_text, "index": 0, "finish_reason": "stop"}],
+        usage=Usage(prompt_tokens=10, completion_tokens=20, total_tokens=30),
+    )
+    stub_model_facade._router.text_completion = lambda model_name, prompt, **kwargs: stub_response
+
+    prompt = "Complete this sentence:"
+    result = stub_model_facade.text_completion(prompt, skip_usage_tracking=skip_usage_tracking)
+
+    assert result == stub_response
+    assert result.choices[0]["text"] == expected_text
+
+
+def test_text_completion_with_exception(stub_model_facade):
+    def raise_exception(*args, **kwargs):
+        raise Exception("Router error")
+
+    stub_model_facade._router.text_completion = raise_exception
+
+    with pytest.raises(Exception, match="Router error"):
+        stub_model_facade.text_completion("test prompt")
+
+
+def test_text_completion_with_kwargs(stub_model_facade):
+    captured_kwargs = {}
+    expected_text = "Completed text"
+    stub_response = TextCompletionResponse(
+        choices=[{"text": expected_text, "index": 0, "finish_reason": "stop"}],
+        usage=Usage(prompt_tokens=10, completion_tokens=20, total_tokens=30),
+    )
+
+    def mock_text_completion(model_name, prompt, **kwargs):
+        captured_kwargs.update(kwargs)
+        return stub_response
+
+    stub_model_facade._router.text_completion = mock_text_completion
+
+    kwargs = {"temperature": 0.8, "max_tokens": 150}
+    result = stub_model_facade.text_completion("test prompt", **kwargs)
+
+    assert result == stub_response
+    assert captured_kwargs == kwargs
+
+
+@pytest.mark.parametrize(
+    "skip_usage_tracking",
+    [
+        False,
+        True,
+    ],
+)
+def test_embedding_success_single_input(stub_model_facade, skip_usage_tracking):
+    expected_embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+    stub_response = EmbeddingResponse(
+        data=[{"embedding": expected_embedding, "index": 0, "object": "embedding"}],
+        model="test-model",
+        usage=Usage(prompt_tokens=5, total_tokens=5),
+    )
+    stub_model_facade._router.embedding = lambda model, input, **kwargs: stub_response
+
+    input_text = "Test embedding input"
+    result = stub_model_facade.embedding(input_text, skip_usage_tracking=skip_usage_tracking)
+
+    assert result == stub_response
+    assert result.data[0]["embedding"] == expected_embedding
+
+
+@pytest.mark.parametrize(
+    "skip_usage_tracking",
+    [
+        False,
+        True,
+    ],
+)
+def test_embedding_success_multiple_inputs(stub_model_facade, skip_usage_tracking):
+    expected_embeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+    stub_response = EmbeddingResponse(
+        data=[
+            {"embedding": expected_embeddings[0], "index": 0, "object": "embedding"},
+            {"embedding": expected_embeddings[1], "index": 1, "object": "embedding"},
+        ],
+        model="test-model",
+        usage=Usage(prompt_tokens=10, total_tokens=10),
+    )
+    stub_model_facade._router.embedding = lambda model, input, **kwargs: stub_response
+
+    input_texts = ["First text", "Second text"]
+    result = stub_model_facade.embedding(input_texts, skip_usage_tracking=skip_usage_tracking)
+
+    assert result == stub_response
+    assert len(result.data) == 2
+    assert result.data[0]["embedding"] == expected_embeddings[0]
+    assert result.data[1]["embedding"] == expected_embeddings[1]
+
+
+def test_embedding_with_exception(stub_model_facade):
+    def raise_exception(*args, **kwargs):
+        raise Exception("Embedding error")
+
+    stub_model_facade._router.embedding = raise_exception
+
+    with pytest.raises(Exception, match="Embedding error"):
+        stub_model_facade.embedding("test input")
+
+
+def test_embedding_with_kwargs(stub_model_facade):
+    captured_kwargs = {}
+    stub_response = EmbeddingResponse(
+        data=[{"embedding": [0.1, 0.2], "index": 0, "object": "embedding"}],
+        model="test-model",
+        usage=Usage(prompt_tokens=5, total_tokens=5),
+    )
+
+    def mock_embedding(model, input, **kwargs):
+        captured_kwargs.update(kwargs)
+        return stub_response
+
+    stub_model_facade._router.embedding = mock_embedding
+
+    kwargs = {"dimensions": 512}
+    result = stub_model_facade.embedding("test input", **kwargs)
+
+    assert result == stub_response
+    assert "dimensions" in captured_kwargs
+    assert captured_kwargs["dimensions"] == 512
+
+
+def test_embedding_usage_tracking(stub_model_facade):
+    stub_response = EmbeddingResponse(
+        data=[{"embedding": [0.1, 0.2], "index": 0, "object": "embedding"}],
+        model="test-model",
+        usage=Usage(prompt_tokens=10, total_tokens=10),
+    )
+    stub_model_facade._router.embedding = lambda model, input, **kwargs: stub_response
+
+    initial_prompt_tokens = stub_model_facade.usage_stats.token_usage.prompt_tokens
+    initial_completion_tokens = stub_model_facade.usage_stats.token_usage.completion_tokens
+
+    stub_model_facade.embedding("test input", skip_usage_tracking=False)
+
+    assert stub_model_facade.usage_stats.token_usage.prompt_tokens == initial_prompt_tokens + 10
+    assert stub_model_facade.usage_stats.token_usage.completion_tokens == initial_completion_tokens + 0
+
+
+def test_text_completion_usage_tracking(stub_model_facade):
+    stub_response = TextCompletionResponse(
+        choices=[{"text": "test", "index": 0, "finish_reason": "stop"}],
+        usage=Usage(prompt_tokens=5, completion_tokens=15, total_tokens=20),
+    )
+    stub_model_facade._router.text_completion = lambda model_name, prompt, **kwargs: stub_response
+
+    initial_prompt_tokens = stub_model_facade.usage_stats.token_usage.prompt_tokens
+    initial_completion_tokens = stub_model_facade.usage_stats.token_usage.completion_tokens
+
+    stub_model_facade.text_completion("test prompt", skip_usage_tracking=False)
+
+    assert stub_model_facade.usage_stats.token_usage.prompt_tokens == initial_prompt_tokens + 5
+    assert stub_model_facade.usage_stats.token_usage.completion_tokens == initial_completion_tokens + 15

@@ -41,6 +41,11 @@ class RecordBasedPromptRenderer(WithJinja2UserTemplateRendering):
     def render(self, *, prompt_template: str | None, record: dict, prompt_type: PromptType) -> str | None:
         self._prepare_environment(prompt_template=prompt_template, record=record, prompt_type=prompt_type)
         rendered_prompt = self.render_multi_template(prompt_type, record) if prompt_template else ""
+
+        # Only apply recipe if it exists (embedding columns don't have recipes)
+        if self.response_recipe is None:
+            return rendered_prompt
+
         recipe_applicator = (
             self.response_recipe.apply_recipe_to_user_prompt
             if prompt_type == PromptType.USER_PROMPT

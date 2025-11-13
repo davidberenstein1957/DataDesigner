@@ -6,6 +6,7 @@ configure_logging(LoggingConfig.default())
 
 from ..config.analysis.column_profilers import JudgeScoreProfilerConfig
 from ..config.column_configs import (
+    EmbeddingColumnConfig,
     ExpressionColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
@@ -31,6 +32,7 @@ from ..config.models import (
     ModalityContext,
     ModalityDataType,
     ModelConfig,
+    ModelType,
     UniformDistribution,
     UniformDistributionParams,
 )
@@ -90,6 +92,7 @@ __all__ = [
     "DatastoreSettings",
     "DatetimeSamplerParams",
     "DropColumnsProcessorConfig",
+    "EmbeddingColumnConfig",
     "ExpressionColumnConfig",
     "GaussianSamplerParams",
     "IndexRange",
@@ -109,6 +112,7 @@ __all__ = [
     "ModalityContext",
     "ModalityDataType",
     "ModelConfig",
+    "ModelType",
     "PartitionBlock",
     "PersonSamplerParams",
     "PoissonSamplerParams",

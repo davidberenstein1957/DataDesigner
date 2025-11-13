@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 
-from data_designer.config.models import ModelConfig
+from data_designer.config.models import ModelConfig, ModelType
 from data_designer.engine.model_provider import ModelProvider, ModelProviderRegistry
 from data_designer.engine.models.facade import ModelFacade
 from data_designer.engine.models.litellm_overrides import apply_litellm_patches
@@ -75,19 +75,46 @@ class ModelRegistry:
                 f"  |-- 👀 Checking {model.model_name!r} in provider named {model.model_provider_name!r} for model alias {model.model_alias!r}..."
             )
             try:
-                model.generate(
-                    prompt="Hello!",
-                    parser=lambda x: x,
-                    system_prompt="You are a helpful assistant.",
-                    max_correction_steps=0,
-                    max_conversation_restarts=0,
-                    skip_usage_tracking=True,
-                    purpose="running health checks",
-                )
+                self._run_model_specific_health_check(model)
                 logger.info("  |-- ✅ Passed!")
             except Exception as e:
                 logger.error("  |-- ❌ Failed!")
                 raise e
+
+    def _run_model_specific_health_check(self, model: ModelFacade) -> None:
+        """Run health check appropriate for the model type."""
+        if model.model_type == ModelType.EMBEDDING:
+            # For embedding models, test with a simple embedding request
+            # For asymmetric models (like NVIDIA's), include input_type
+            extra_body = {"input_type": "query"}  # Default to query for health check
+            model.embedding(
+                input_text="test",
+                skip_usage_tracking=True,
+                extra_body=extra_body,
+            )
+        elif model.model_type in [ModelType.CHAT, ModelType.COMPLETION, ModelType.VISION]:
+            # For chat/completion/vision models, use generate
+            model.generate(
+                prompt="Hello!",
+                parser=lambda x: x,
+                system_prompt="You are a helpful assistant.",
+                max_correction_steps=0,
+                max_conversation_restarts=0,
+                skip_usage_tracking=True,
+                purpose="running health checks",
+            )
+        else:
+            # For unknown types, try chat completion as default
+            logger.warning(f"  |-- ⚠️ Unknown model type {model.model_type}, attempting chat completion health check")
+            model.generate(
+                prompt="Hello!",
+                parser=lambda x: x,
+                system_prompt="You are a helpful assistant.",
+                max_correction_steps=0,
+                max_conversation_restarts=0,
+                skip_usage_tracking=True,
+                purpose="running health checks",
+            )
 
     def _set_model_configs(self, model_configs: list[ModelConfig]) -> None:
         model_configs = model_configs or []

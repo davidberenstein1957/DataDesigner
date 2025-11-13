@@ -5,6 +5,7 @@ import functools
 import logging
 
 from data_designer.config.column_configs import (
+    EmbeddingColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
     LLMStructuredColumnConfig,
@@ -170,3 +171,83 @@ class LLMJudgeCellGenerator(WithLLMGeneration, ColumnGenerator[LLMJudgeColumnCon
     @property
     def max_conversation_restarts(self) -> int:
         return 2 * DEFAULT_MAX_CONVERSATION_RESTARTS
+
+
+class EmbeddingColumnGenerator(ColumnGenerator[EmbeddingColumnConfig]):
+    """Generator for embedding columns using embedding models."""
+
+    @staticmethod
+    def metadata() -> GeneratorMetadata:
+        return GeneratorMetadata(
+            name="embedding_generator",
+            description="Generate embedding vectors for text inputs",
+            generation_strategy=GenerationStrategy.CELL_BY_CELL,
+            required_resources=[ResourceType.MODEL_REGISTRY],
+        )
+
+    @functools.cached_property
+    def model(self) -> ModelFacade:
+        return self.resource_provider.model_registry.get_model(model_alias=self.config.model_alias)
+
+    @functools.cached_property
+    def model_config(self) -> ModelConfig:
+        return self.resource_provider.model_registry.get_model_config(model_alias=self.config.model_alias)
+
+    @functools.cached_property
+    def prompt_renderer(self) -> RecordBasedPromptRenderer:
+        return RecordBasedPromptRenderer(
+            response_recipe=None,
+            error_message_context={
+                "column_name": self.config.name,
+                "column_type": self.config.column_type,
+                "model_alias": self.config.model_alias,
+            },
+        )
+
+    def generate(self, data: dict) -> dict:
+        import numpy as np
+
+        deserialized_record = deserialize_json_values(data)
+
+        input_text = self.prompt_renderer.render(
+            record=deserialized_record,
+            prompt_template=self.config.input_text,
+            prompt_type=PromptType.USER_PROMPT,
+        )
+
+        # Prepare kwargs for embedding call
+        embedding_kwargs = self.model_config.inference_parameters.generate_kwargs.copy()
+
+        # For asymmetric models (like NVIDIA's), add input_type if specified in config
+        if self.config.input_type:
+            if "extra_body" not in embedding_kwargs:
+                embedding_kwargs["extra_body"] = {}
+            if "input_type" not in embedding_kwargs.get("extra_body", {}):
+                embedding_kwargs["extra_body"]["input_type"] = self.config.input_type
+
+        response = self.model.embedding(input_text, **embedding_kwargs)
+
+        embedding_vector = response.data[0]["embedding"]
+
+        if self.config.normalize:
+            embedding_array = np.array(embedding_vector)
+            norm = np.linalg.norm(embedding_array)
+            if norm > 0:
+                embedding_vector = (embedding_array / norm).tolist()
+
+        data[self.config.name] = embedding_vector
+
+        return data
+
+    def log_pre_generation(self) -> None:
+        emoji = COLUMN_TYPE_EMOJI_MAP[self.config.column_type]
+        logger.info(f"{emoji} Preparing {self.config.column_type} column generation")
+        logger.info(f"  |-- column name: {self.config.name!r}")
+        logger.info(f"  |-- model config:\n{self.model_config.model_dump_json(indent=4)}")
+        if self.model_config.provider is None:
+            logger.info(f"  |-- default model provider: {self._get_provider_name()!r}")
+
+    def _get_provider_name(self) -> str:
+        model_alias = self.model_config.alias
+        provider = self.resource_provider.model_registry.get_model_provider(model_alias=model_alias)
+        return provider.name

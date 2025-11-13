@@ -18,6 +18,7 @@ from data_designer.config.models import (
     ManualDistributionParams,
     ModalityDataType,
     ModelConfig,
+    ModelType,
     UniformDistribution,
     UniformDistributionParams,
     load_model_configs,
@@ -199,6 +200,44 @@ def test_generation_parameters_max_tokens_validation():
         InferenceParameters(max_tokens=1)
     except Exception:
         pytest.fail("Unexpected exception raised during InferenceParameters max_tokens validation")
+
+
+def test_model_type_enum():
+    assert ModelType.CHAT == "chat"
+    assert ModelType.COMPLETION == "completion"
+    assert ModelType.EMBEDDING == "embedding"
+    assert ModelType.VISION == "vision"
+
+
+def test_model_config_default_model_type():
+    config = ModelConfig(alias="test", model="test-model", inference_parameters=InferenceParameters())
+    assert config.model_type == ModelType.CHAT
+
+
+def test_model_config_with_model_type():
+    config = ModelConfig(
+        alias="embed",
+        model="embedding-model",
+        inference_parameters=InferenceParameters(),
+        model_type=ModelType.EMBEDDING,
+    )
+    assert config.model_type == ModelType.EMBEDDING
+
+    config = ModelConfig(
+        alias="vision",
+        model="vision-model",
+        inference_parameters=InferenceParameters(),
+        model_type=ModelType.VISION,
+    )
+    assert config.model_type == ModelType.VISION
+
+    config = ModelConfig(
+        alias="completion",
+        model="completion-model",
+        inference_parameters=InferenceParameters(),
+        model_type=ModelType.COMPLETION,
+    )
+    assert config.model_type == ModelType.COMPLETION
 
 
 def test_load_model_configs():
