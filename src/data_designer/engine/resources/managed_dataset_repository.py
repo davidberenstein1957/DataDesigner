@@ -9,6 +9,7 @@ from pathlib import Path
 import tempfile
 import threading
 import time
+from typing import Any
 
 import duckdb
 import pandas as pd
@@ -60,7 +61,7 @@ DEFAULT_DATA_CATALOG: DataCatalog = [Table(f"{locale}.parquet") for locale in LO
 
 class ManagedDatasetRepository(ABC):
     @abstractmethod
-    def query(self, sql: str) -> pd.DataFrame: ...
+    def query(self, sql: str, parameters: list[Any]) -> pd.DataFrame: ...
 
     @property
     @abstractmethod
@@ -129,7 +130,7 @@ class DuckDBDatasetRepository(ManagedDatasetRepository):
                 for table in self.data_catalog:
                     key = table.source if table.schema == "main" else f"{table.schema}/{table.source}"
                     if self._use_cache:
-                        tmp_root = Path(tempfile.gettempdir()) / "gretel_ds_cache"
+                        tmp_root = Path(tempfile.gettempdir()) / "dd_cache"
                         local_path = tmp_root / key
                         local_path.parent.mkdir(parents=True, exist_ok=True)
                         if not local_path.exists():
@@ -160,7 +161,7 @@ class DuckDBDatasetRepository(ManagedDatasetRepository):
                 # Signal that registration is complete so any waiting queries can proceed.
                 self._registration_event.set()
 
-    def query(self, sql: str) -> pd.DataFrame:
+    def query(self, sql: str, parameters: list[Any]) -> pd.DataFrame:
         # Ensure dataset registration has completed. Possible future optimization:
         # pull datasets in parallel and only wait here if the query requires a
         # table that isn't cached.
@@ -173,7 +174,7 @@ class DuckDBDatasetRepository(ManagedDatasetRepository):
         # more details here: https://duckdb.org/docs/stable/guides/python/multiple_threads.html
         cursor = self.db.cursor()
         try:
-            df = cursor.sql(sql).df()
+            df = cursor.execute(sql, parameters).df()
         finally:
             cursor.close()
         return df
@@ -183,10 +184,11 @@ class DuckDBDatasetRepository(ManagedDatasetRepository):
         return self._data_catalog
 
 
-def load_managed_dataset_repository(blob_storage: ManagedBlobStorage) -> ManagedDatasetRepository:
+def load_managed_dataset_repository(blob_storage: ManagedBlobStorage, locales: list[str]) -> ManagedDatasetRepository:
     return DuckDBDatasetRepository(
         blob_storage,
-        {"threads": 1, "memory_limit": "2 gb"},
+        config={"threads": 1, "memory_limit": "2 gb"},
+        data_catalog=[Table(f"{locale}.parquet") for locale in locales],
         # Only cache if not using local storage.
         use_cache=not isinstance(blob_storage, LocalBlobStorageProvider),
     )

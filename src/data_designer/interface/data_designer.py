@@ -8,22 +8,28 @@ import pandas as pd
 
 from data_designer.config.analysis.dataset_profiler import DatasetProfilerResults
 from data_designer.config.config_builder import DataDesignerConfigBuilder
+from data_designer.config.default_model_settings import (
+    get_default_model_configs,
+    get_default_provider_name,
+    get_default_providers,
+    resolve_seed_default_model_settings,
+)
 from data_designer.config.interface import DataDesignerInterface
 from data_designer.config.models import (
     ModelConfig,
     ModelProvider,
-    get_default_model_configs,
-    get_default_providers,
 )
 from data_designer.config.preview_results import PreviewResults
 from data_designer.config.seed import LocalSeedDatasetReference
 from data_designer.config.utils.constants import (
     DEFAULT_NUM_RECORDS,
-    NVIDIA_API_KEY_ENV_VAR_NAME,
-    OPENAI_API_KEY_ENV_VAR_NAME,
+    MANAGED_ASSETS_PATH,
+    MODEL_CONFIGS_FILE_PATH,
+    MODEL_PROVIDERS_FILE_PATH,
 )
 from data_designer.config.utils.info import InterfaceInfo
 from data_designer.config.utils.io_helpers import write_seed_dataset
+from data_designer.config.utils.misc import can_run_data_designer_locally
 from data_designer.engine.analysis.dataset_profiler import (
     DataDesignerDatasetProfiler,
     DatasetProfilerConfig,
@@ -39,7 +45,12 @@ from data_designer.engine.resources.seed_dataset_data_store import (
     HfHubSeedDatasetDataStore,
     LocalSeedDatasetDataStore,
 )
-from data_designer.engine.secret_resolver import EnvironmentResolver, SecretResolver
+from data_designer.engine.secret_resolver import (
+    CompositeResolver,
+    EnvironmentResolver,
+    PlaintextResolver,
+    SecretResolver,
+)
 from data_designer.interface.errors import (
     DataDesignerGenerationError,
     DataDesignerProfilingError,
@@ -51,6 +62,11 @@ from data_designer.logging import RandomEmoji
 DEFAULT_BUFFER_SIZE = 1000
 
 logger = logging.getLogger(__name__)
+
+
+# Resolve default model settings on import to ensure they are available when the library is used.
+if can_run_data_designer_locally():
+    resolve_seed_default_model_settings()
 
 
 class DataDesigner(DataDesignerInterface[DatasetCreationResults]):
@@ -68,8 +84,11 @@ class DataDesigner(DataDesignerInterface[DatasetCreationResults]):
             uses default providers.
         secret_resolver: Resolver for handling secrets and credentials. Defaults to
             EnvironmentResolver which reads secrets from environment variables.
-        blob_storage_path: Path to the blob storage directory. Note this parameter
-            is temporary and will be removed after we update person sampling for the library.
+        managed_assets_path: Path to the managed assets directory. This is used to point
+            to the location of managed datasets and other assets used during dataset generation.
+            If not provided, will check for an environment variable called DATA_DESIGNER_MANAGED_ASSETS_PATH.
+            If the environment variable is not set, will use the default managed assets directory, which
+            is defined in `data_designer.config.utils.constants`.
     """
 
     def __init__(
@@ -77,19 +96,17 @@ class DataDesigner(DataDesignerInterface[DatasetCreationResults]):
         artifact_path: Path | str | None = None,
         *,
         model_providers: list[ModelProvider] | None = None,
-        secret_resolver: SecretResolver = EnvironmentResolver(),
-        blob_storage_path: Path | str | None = None,
+        secret_resolver: SecretResolver | None = None,
+        managed_assets_path: Path | str | None = None,
     ):
-        self._secret_resolver = secret_resolver
+        self._secret_resolver = secret_resolver or CompositeResolver([EnvironmentResolver(), PlaintextResolver()])
         self._artifact_path = Path(artifact_path) if artifact_path is not None else Path.cwd() / "artifacts"
         self._buffer_size = DEFAULT_BUFFER_SIZE
-        self._blob_storage = (
-            init_managed_blob_storage()
-            if blob_storage_path is None
-            else init_managed_blob_storage(str(blob_storage_path))
-        )
+        self._managed_assets_path = Path(managed_assets_path or MANAGED_ASSETS_PATH)
         self._model_providers = model_providers or self.get_default_model_providers()
-        self._model_provider_registry = resolve_model_provider_registry(self._model_providers)
+        self._model_provider_registry = resolve_model_provider_registry(
+            self._model_providers, get_default_provider_name()
+        )
 
     @staticmethod
     def make_seed_reference_from_file(file_path: str | Path) -> LocalSeedDatasetReference:
@@ -129,6 +146,11 @@ class DataDesigner(DataDesignerInterface[DatasetCreationResults]):
 
     @property
     def info(self) -> InterfaceInfo:
+        """Get information about the Data Designer interface.
+
+        Returns:
+            InterfaceInfo object with information about the Data Designer interface.
+        """
         return InterfaceInfo(model_providers=self._model_providers)
 
     def create(
@@ -211,35 +233,62 @@ class DataDesigner(DataDesignerInterface[DatasetCreationResults]):
         builder = self._create_dataset_builder(config_builder, resource_provider)
 
         try:
-            dataset = builder.build_preview(num_records=num_records)
+            raw_dataset = builder.build_preview(num_records=num_records)
+            processed_dataset = builder.process_preview(raw_dataset)
         except Exception as e:
             raise DataDesignerGenerationError(f"🛑 Error generating preview dataset: {e}")
 
+        dropped_columns = raw_dataset.columns.difference(processed_dataset.columns)
+        if len(dropped_columns) > 0:
+            dataset_for_profiler = pd.concat([processed_dataset, raw_dataset[dropped_columns]], axis=1)
+        else:
+            dataset_for_profiler = processed_dataset
+
         try:
             profiler = self._create_dataset_profiler(config_builder, resource_provider)
-            analysis = profiler.profile_dataset(num_records, dataset)
+            analysis = profiler.profile_dataset(num_records, dataset_for_profiler)
         except Exception as e:
             raise DataDesignerProfilingError(f"🛑 Error profiling preview dataset: {e}")
 
-        if len(dataset) > 0 and isinstance(analysis, DatasetProfilerResults) and len(analysis.column_statistics) > 0:
+        if (
+            len(processed_dataset) > 0
+            and isinstance(analysis, DatasetProfilerResults)
+            and len(analysis.column_statistics) > 0
+        ):
             logger.info(f"{RandomEmoji.success()} Preview complete!")
 
         return PreviewResults(
-            dataset=dataset,
+            dataset=processed_dataset,
             analysis=analysis,
             config_builder=config_builder,
         )
 
     def get_default_model_configs(self) -> list[ModelConfig]:
-        model_configs = get_default_model_configs()
-        if len(model_configs) == 0:
-            logger.warning(
-                f"‼️ Neither {NVIDIA_API_KEY_ENV_VAR_NAME!r} nor {OPENAI_API_KEY_ENV_VAR_NAME!r} environment variables are set. Please set at least one of them if you want to use the default model configs."
-            )
-        return model_configs
+        """Get the default model configurations.
+
+        Returns:
+            List of default model configurations.
+        """
+        logger.info(f"♻️ Using default model configs from {str(MODEL_CONFIGS_FILE_PATH)!r}")
+        return get_default_model_configs()
 
     def get_default_model_providers(self) -> list[ModelProvider]:
+        """Get the default model providers.
+
+        Returns:
+            List of default model providers.
+        """
+        logger.info(f"♻️ Using default model providers from {str(MODEL_PROVIDERS_FILE_PATH)!r}")
         return get_default_providers()
+
+    @property
+    def secret_resolver(self) -> SecretResolver:
+        """Get the secret resolver used by this DataDesigner instance.
+
+        Returns:
+            The SecretResolver instance handling credentials and secrets.
+        """
+        return self._secret_resolver
 
     def set_buffer_size(self, buffer_size: int) -> None:
         """Set the buffer size for dataset generation.
@@ -290,7 +339,7 @@ class DataDesigner(DataDesignerInterface[DatasetCreationResults]):
                 model_provider_registry=self._model_provider_registry,
                 secret_resolver=self._secret_resolver,
             ),
-            blob_storage=self._blob_storage,
+            blob_storage=init_managed_blob_storage(str(self._managed_assets_path)),
             datastore=(
                 LocalSeedDatasetDataStore()
                 if (settings := config_builder.get_seed_datastore_settings()) is None

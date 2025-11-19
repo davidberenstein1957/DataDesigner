@@ -70,6 +70,10 @@ class ColumnWiseDatasetBuilder:
                 configs.append(config)
         return configs
 
+    @functools.cached_property
+    def llm_generated_column_configs(self) -> list[ColumnConfigT]:
+        return [config for config in self.single_column_configs if column_type_is_llm_generated(config.column_type)]
+
     def build(
         self,
         *,
@@ -111,11 +115,7 @@ class ColumnWiseDatasetBuilder:
         start_time = time.perf_counter()
         self.batch_manager.start(num_records=num_records, buffer_size=num_records)
         self._run_batch(generators, save_partial_results=False)
-        dataset = self._run_processors(
-            stage=BuildStage.POST_BATCH,
-            dataframe=self.batch_manager.get_current_batch(as_dataframe=True),
-            current_batch_number=None,  # preview mode does not have a batch number
-        )
+        dataset = self.batch_manager.get_current_batch(as_dataframe=True)
         self.batch_manager.reset()
 
         model_usage_stats = self._resource_provider.model_registry.get_model_usage_stats(
@@ -124,6 +124,13 @@ class ColumnWiseDatasetBuilder:
         logger.info(f"📊 Model usage summary:\n{json.dumps(model_usage_stats, indent=4)}")
 
         return dataset
+
+    def process_preview(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        return self._run_processors(
+            stage=BuildStage.POST_BATCH,
+            dataframe=dataset.copy(),
+            current_batch_number=None,  # preview mode does not have a batch number
+        )
 
     def _initialize_generators(self) -> list[ColumnGenerator]:
         return [
@@ -172,7 +179,9 @@ class ColumnWiseDatasetBuilder:
 
     def _run_model_health_check_if_needed(self) -> bool:
         if any(column_type_is_llm_generated(config.column_type) for config in self.single_column_configs):
-            self._resource_provider.model_registry.run_health_check()
+            self._resource_provider.model_registry.run_health_check(
+                set(config.model_alias for config in self.llm_generated_column_configs)
+            )
 
     def _fan_out_with_threads(self, generator: WithLLMGeneration, max_workers: int) -> None:
         if generator.generation_strategy != GenerationStrategy.CELL_BY_CELL:

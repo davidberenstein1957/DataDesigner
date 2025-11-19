@@ -8,10 +8,14 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from data_designer.config.column_configs import SamplerColumnConfig
+from data_designer.config.config_builder import DataDesignerConfigBuilder
+from data_designer.config.dataset_builders import BuildStage
 from data_designer.config.errors import InvalidFileFormatError
+from data_designer.config.processors import DropColumnsProcessorConfig
 from data_designer.config.seed import LocalSeedDatasetReference
 from data_designer.engine.model_provider import ModelProvider
-from data_designer.engine.secret_resolver import PlaintextResolver
+from data_designer.engine.secret_resolver import CompositeResolver, EnvironmentResolver, PlaintextResolver
 from data_designer.interface.data_designer import DataDesigner
 from data_designer.interface.errors import (
     DataDesignerGenerationError,
@@ -24,6 +28,14 @@ from data_designer.interface.errors import (
 def stub_artifact_path(tmp_path):
     """Temporary directory for artifacts."""
     return tmp_path / "artifacts"
+
+
+@pytest.fixture
+def stub_managed_assets_path(tmp_path):
+    """Temporary directory for managed assets."""
+    managed_path = tmp_path / "managed-assets"
+    managed_path.mkdir(parents=True, exist_ok=True)
+    return managed_path
 
 
 @pytest.fixture
@@ -45,6 +57,18 @@ def test_init_with_custom_secret_resolver(stub_artifact_path, stub_model_provide
         secret_resolver=PlaintextResolver(),
     )
     assert designer is not None
+
+
+def test_init_with_default_composite_secret_resolver(stub_artifact_path, stub_model_providers):
+    """Test DataDesigner initialization with default composite secret resolver."""
+    designer = DataDesigner(artifact_path=stub_artifact_path, model_providers=stub_model_providers)
+    assert designer is not None
+    assert isinstance(designer.secret_resolver, CompositeResolver)
+    # Verify the composite resolver is properly configured with the expected resolvers
+    resolvers = designer.secret_resolver.resolvers
+    assert len(resolvers) == 2
+    assert isinstance(resolvers[0], EnvironmentResolver)
+    assert isinstance(resolvers[1], PlaintextResolver)
 
 
 def test_init_with_string_path(stub_artifact_path, stub_model_providers):
@@ -267,7 +291,7 @@ def test_multiple_seed_references_can_be_created():
 
 
 def test_create_dataset_e2e_using_only_sampler_columns(
-    stub_sampler_only_config_builder, stub_artifact_path, stub_model_providers
+    stub_sampler_only_config_builder, stub_artifact_path, stub_model_providers, stub_managed_assets_path
 ):
     column_names = [config.name for config in stub_sampler_only_config_builder.get_column_configs()]
 
@@ -277,6 +301,7 @@ def test_create_dataset_e2e_using_only_sampler_columns(
         artifact_path=stub_artifact_path,
         model_providers=stub_model_providers,
         secret_resolver=PlaintextResolver(),
+        managed_assets_path=stub_managed_assets_path,
     )
 
     results = data_designer.create(stub_sampler_only_config_builder, num_records=num_records)
@@ -297,13 +322,14 @@ def test_create_dataset_e2e_using_only_sampler_columns(
 
 
 def test_create_raises_error_when_builder_fails(
-    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder
+    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder, stub_managed_assets_path
 ):
     """Test that create method raises DataDesignerCreateError when builder.build fails."""
     data_designer = DataDesigner(
         artifact_path=stub_artifact_path,
         model_providers=stub_model_providers,
         secret_resolver=PlaintextResolver(),
+        managed_assets_path=stub_managed_assets_path,
     )
 
     with patch.object(data_designer, "_create_dataset_builder") as mock_builder_method:
@@ -316,13 +342,14 @@ def test_create_raises_error_when_builder_fails(
 
 
 def test_create_raises_error_when_profiler_fails(
-    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder
+    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder, stub_managed_assets_path
 ):
     """Test that create method raises DataDesignerCreateError when profiler.profile_dataset fails."""
     data_designer = DataDesigner(
         artifact_path=stub_artifact_path,
         model_providers=stub_model_providers,
         secret_resolver=PlaintextResolver(),
+        managed_assets_path=stub_managed_assets_path,
     )
 
     with (
@@ -345,13 +372,14 @@ def test_create_raises_error_when_profiler_fails(
 
 
 def test_preview_raises_error_when_builder_fails(
-    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder
+    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder, stub_managed_assets_path
 ):
     """Test that preview method raises DataDesignerPreviewError when builder.build_preview fails."""
     data_designer = DataDesigner(
         artifact_path=stub_artifact_path,
         model_providers=stub_model_providers,
         secret_resolver=PlaintextResolver(),
+        managed_assets_path=stub_managed_assets_path,
     )
 
     with patch.object(data_designer, "_create_dataset_builder") as mock_builder_method:
@@ -366,13 +394,14 @@ def test_preview_raises_error_when_builder_fails(
 
 
 def test_preview_raises_error_when_profiler_fails(
-    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder
+    stub_artifact_path, stub_model_providers, stub_sampler_only_config_builder, stub_managed_assets_path
 ):
     """Test that preview method raises DataDesignerPreviewError when profiler.profile_dataset fails."""
     data_designer = DataDesigner(
         artifact_path=stub_artifact_path,
         model_providers=stub_model_providers,
         secret_resolver=PlaintextResolver(),
+        managed_assets_path=stub_managed_assets_path,
     )
 
     with (
@@ -382,7 +411,7 @@ def test_preview_raises_error_when_profiler_fails(
         # Mock builder to succeed
         mock_builder = MagicMock()
         mock_builder.build_preview.return_value = pd.DataFrame({"col": [1, 2, 3]})
-        mock_builder.drop_columns_if_needed.return_value = pd.DataFrame({"col": [1, 2, 3]})
+        mock_builder.process_preview.return_value = pd.DataFrame({"col": [1, 2, 3]})
         mock_builder_method.return_value = mock_builder
 
         # Mock profiler to fail
@@ -394,3 +423,57 @@ def test_preview_raises_error_when_profiler_fails(
             DataDesignerProfilingError, match="🛑 Error profiling preview dataset: Profiler failed in preview"
         ):
             data_designer.preview(stub_sampler_only_config_builder, num_records=3)
+
+
+def test_preview_with_dropped_columns(
+    stub_artifact_path, stub_model_providers, stub_model_configs, stub_managed_assets_path
+):
+    """Test that preview correctly handles dropped columns and maintains consistency."""
+    config_builder = DataDesignerConfigBuilder(model_configs=stub_model_configs)
+    config_builder.add_column(
+        SamplerColumnConfig(
+            name="uuid", sampler_type="uuid", params={"prefix": "id_", "short_form": True, "uppercase": False}
+        )
+    )
+    config_builder.add_column(
+        SamplerColumnConfig(name="category", sampler_type="category", params={"values": ["a", "b", "c"]})
+    )
+    config_builder.add_column(
+        SamplerColumnConfig(name="uniform", sampler_type="uniform", params={"low": 1, "high": 100})
+    )
+
+    config_builder.add_processor(
+        DropColumnsProcessorConfig(build_stage=BuildStage.POST_BATCH, column_names=["category"])
+    )
+
+    data_designer = DataDesigner(
+        artifact_path=stub_artifact_path,
+        model_providers=stub_model_providers,
+        secret_resolver=PlaintextResolver(),
+        managed_assets_path=stub_managed_assets_path,
+    )
+
+    num_records = 5
+    preview_results = data_designer.preview(config_builder, num_records=num_records)
+
+    preview_dataset = preview_results.dataset
+
+    assert "category" not in preview_dataset.columns, "Dropped column 'category' should not be in preview dataset"
+
+    assert "uuid" in preview_dataset.columns, "Column 'uuid' should be in preview dataset"
+    assert "uniform" in preview_dataset.columns, "Column 'uniform' should be in preview dataset"
+
+    assert len(preview_dataset) == num_records, f"Preview dataset should have {num_records} records"
+
+    analysis = preview_results.analysis
+    assert analysis is not None, "Analysis should be generated"
+
+    column_names_in_analysis = [stat.column_name for stat in analysis.column_statistics]
+    assert "uuid" in column_names_in_analysis, "Column 'uuid' should be in analysis"
+    assert "uniform" in column_names_in_analysis, "Column 'uniform' should be in analysis"
+    assert "category" not in column_names_in_analysis, "Dropped column 'category' should not be in analysis statistics"
+
+    assert analysis.side_effect_column_names is not None, "Side effect column names should be tracked"
+    assert "category" in analysis.side_effect_column_names, (
+        "Dropped column 'category' should be tracked in side_effect_column_names"
+    )
