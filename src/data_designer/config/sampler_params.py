@@ -219,8 +219,10 @@ class PersonSamplerParams(ConfigBase):
     locale: str = Field(
         default="en_US",
         description=(
-            "Locale string, determines the language and geographic locale "
-            "that a synthetic person will be sampled from. E.g, en_US, en_GB, fr_FR, ..."
+            "Locale that determines the language and geographic location "
+            "that a synthetic person will be sampled from. Must be a locale supported by "
+            "a managed Nemotron Personas dataset. Managed datasets exist for the following locales: "
+            f"{', '.join(LOCALES_WITH_MANAGED_DATASETS)}."
         ),
     )
     sex: Optional[SexT] = Field(

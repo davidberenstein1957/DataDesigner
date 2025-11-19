@@ -18,13 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 class SamplerDatasetRepository(ABC):
-    def __init__(self, managed_assets_dir: Path | str = None):
-        self._managed_assets_dir = str(managed_assets_dir or MANAGED_ASSETS_DIR)
-
-    @property
-    def managed_assets_path(self) -> Path:
-        return Path(self._managed_assets_dir)
-
     @abstractmethod
     def get_data_catalog(self, name: str) -> DataCatalog: ...
 
@@ -51,8 +44,12 @@ class SamplerDatasetRepository(ABC):
 
 class LocalSamplerDatasetRepository(SamplerDatasetRepository):
     def __init__(self, managed_assets_dir: Path | str = None):
-        super().__init__(managed_assets_dir)
+        self._managed_assets_dir = str(managed_assets_dir or MANAGED_ASSETS_DIR)
         self._data_catalogs = self._create_default_data_catalogs()
+
+    @property
+    def managed_assets_path(self) -> Path:
+        return Path(self._managed_assets_dir)
 
     def get_data_catalog(self, name: str) -> DataCatalog:
         return self._data_catalogs[name]

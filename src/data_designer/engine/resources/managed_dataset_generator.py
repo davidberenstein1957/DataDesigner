@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class ManagedDatasetGenerator(ABC):
     @abstractmethod
-    def query(self, sql: str) -> pd.DataFrame: ...
+    def query(self, sql: str, parameters: list[Any]) -> pd.DataFrame: ...
 
 
 class DuckDBDatasetGenerator(ManagedDatasetGenerator):
