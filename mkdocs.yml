@@ -3,26 +3,30 @@ repo_url: https://github.com/NVIDIA-NeMo/DataDesigner
 
 nav:
   - Getting Started:
-      - Welcome to Data Designer: index.md
+      - Welcome: index.md
       - Installation: installation.md
       - Quick Start: quick-start.md
       - Contributing: CONTRIBUTING.md
   - Concepts:
       - Columns: concepts/columns.md
-      - Plugins: concepts/plugins.md
-  - Tutorials:
-      - The Basics: notebooks/1-the-basics.ipynb
-      - Structured Outputs and Jinja Expressions: notebooks/2-structured-outputs-and-jinja-expressions.ipynb
-      - Seeding with an External Dataset: notebooks/3-seeding-with-a-dataset.ipynb
+      - Validators: concepts/validators.md
+      - Person Sampling: concepts/person_sampling.md
   - Models:
       - Default Model Settings: models/default-model-settings.md
       - Configure with the CLI: models/configure-model-settings-with-the-cli.md
       - Model Providers: models/model-providers.md
       - Model Configs: models/model-configs.md
+  - Tutorials:
+      - Overview: notebooks/README.md
+      - The Basics: notebooks/1-the-basics.ipynb
+      - Structured Outputs and Jinja Expressions: notebooks/2-structured-outputs-and-jinja-expressions.ipynb
+      - Seeding with an External Dataset: notebooks/3-seeding-with-a-dataset.ipynb
   - Code Reference:
       - column_configs: code_reference/column_configs.md
       - config_builder: code_reference/config_builder.md
       - data_designer_config: code_reference/data_designer_config.md
+      - sampler_params: code_reference/sampler_params.md
+      - validator_params: code_reference/validator_params.md
 
 theme:
   name: material

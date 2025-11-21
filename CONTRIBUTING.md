@@ -12,7 +12,6 @@ This guide will help you get started with the contribution process.
 - [Ways to Contribute](#ways-to-contribute)
 - [Feature Requests](#feature-requests)
 - [Development Guide](#development-guide)
-- [Code Quality Standards](#code-quality-standards)
 - [Submitting Changes](#submitting-changes)
 - [Code of Conduct](#code-of-conduct)
 - [Signing off on your work](#signing-off-on-your-work)
@@ -27,7 +26,7 @@ Whether you're new to the project or ready to dive in, the resources below will 
 
 2. **[AGENTS.md](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/AGENTS.md)** – context and instructions to help AI coding agents work on Data Designer (it's also useful for human developers!)
 
-3. **[Documentation](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/docs/)** – detailed documentation on Data Designer's capabilities and usage
+3. **[Documentation](https://nvidia-nemo.github.io/DataDesigner/)** – detailed documentation on Data Designer's capabilities and usage
 
 ## Ways to Contribute
 
@@ -40,7 +39,7 @@ Found a bug? Before reporting, please
 2. Search for duplicates in the [issue tracker](https://github.com/NVIDIA-NeMo/DataDesigner/issues)
 
 When [creating a bug report](https://github.com/NVIDIA-NeMo/DataDesigner/issues/new), please include:
-- Data Designer version: `python -c "import data_designer; print(data_designer.__version__)"`
+- Data Designer version
 - Python version and operating system
 - Minimal reproducible example
 - Expected vs. actual behavior
@@ -88,94 +87,97 @@ Data Designer uses [`uv`](https://github.com/astral-sh/uv) for dependency manage
 ### Initial Setup
 0. **Create or find an issue**
 
-   Before starting work, ensure there's an issue tracking your contribution:
-   - For bug fixes: Search [existing issues](https://github.com/NVIDIA-NeMo/DataDesigner/issues) or [create a new one](https://github.com/NVIDIA-NeMo/DataDesigner/issues/new)
-   - For new features: Open a [feature request](#feature-requests) to discuss the approach first
-   - Comment on the issue to let maintainers know you're working on it
+    Before starting work, ensure there's an issue tracking your contribution:
+
+    - For bug fixes: Search [existing issues](https://github.com/NVIDIA-NeMo/DataDesigner/issues) or [create a new one](https://github.com/NVIDIA-NeMo/DataDesigner/issues/new)
+    - For new features: Open a [feature request](#feature-requests) to discuss the approach first
+    - Comment on the issue to let maintainers know you're working on it
 
 1. **Fork and clone the repository**
 
-   Start by [forking the Data Designer repository](https://github.com/NVIDIA-NeMo/DataDesigner/fork), then clone your fork and add the upstream remote:
+    Start by [forking the Data Designer repository](https://github.com/NVIDIA-NeMo/DataDesigner/fork), then clone your fork and add the upstream remote:
 
-   ```bash
-   git clone https://github.com/YOUR_GITHUB_USERNAME/DataDesigner.git
+    ```bash
+    git clone https://github.com/YOUR_GITHUB_USERNAME/DataDesigner.git
 
-   cd DataDesigner
+    cd DataDesigner
 
-   git remote add upstream https://github.com/NVIDIA-NeMo/DataDesigner.git
-   ```
+    git remote add upstream https://github.com/NVIDIA-NeMo/DataDesigner.git
+    ```
 
 2. **Install dependencies**
 
-   ```bash
-   # Install project with dev dependencies
-   make install-dev
+    ```bash
+    # Install project with dev dependencies
+    make install-dev
 
-   # Or, if you use Jupyter / IPython for development
-   make install-dev-notebooks
-   ```
+    # Or, if you use Jupyter / IPython for development
+    make install-dev-notebooks
+    ```
 
 3. **Verify your setup**
 
-   ```bash
-   make test && make check-all
-   ```
+    ```bash
+    make test && make check-all
+    ```
 
-   If no errors are reported, you're ready to develop 🚀
+    If no errors are reported, you're ready to develop 🚀
 
 ### Making Changes
 
 1. **Create a feature branch**
 
-   ```bash
-   git checkout main
-   git pull upstream main
-   git checkout -b <username>/<type-of-change>/<issue-number>-<short-description>
-   ```
+    ```bash
+    git checkout main
+    git pull upstream main
+    git checkout -b <username>/<type-of-change>/<issue-number>-<short-description>
+    ```
 
-   Example types of change:
-   - `feat` for new features
-   - `fix` for bug fixes
-   - `docs` for documentation updates
-   - `test` for testing changes
-   - `refactor` for code refactoring
-   - `chore` for chore tasks
-   - `style` for style changes
-   - `perf` for performance improvements
+    Example types of change:
 
-   Example branch name:
-   - `johnnygreco/feat/123-add-xyz-generator` for a new feature by @johnnygreco, addressing issue #123
+    - `feat` for new features
+    - `fix` for bug fixes
+    - `docs` for documentation updates
+    - `test` for testing changes
+    - `refactor` for code refactoring
+    - `chore` for chore tasks
+    - `style` for style changes
+    - `perf` for performance improvements
+
+    Example branch name:
+
+    - `johnnygreco/feat/123-add-xyz-generator` for a new feature by @johnnygreco, addressing issue #123
 
 2. **Develop your changes**
 
-   Please follow the patterns and conventions used throughout the codebase, as well as those outlined in [AGENTS.md](AGENTS.md).
+    Please follow the patterns and conventions used throughout the codebase, as well as those outlined in [AGENTS.md](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/AGENTS.md).
 
 3. **Test and validate**
 
-   ```bash
-   make check-all-fix  # Format code and fix linting issues
-   make test           # Run all tests
-   make coverage       # Check test coverage (must be >90%)
-   ```
+    ```bash
+    make check-all-fix  # Format code and fix linting issues
+    make test           # Run all tests
+    make coverage       # Check test coverage (must be >90%)
+    ```
 
-   **Writing tests**: Place tests in [tests/](tests/) mirroring the source structure. Use fixtures from [tests/conftest.py](tests/conftest.py), mock external services with `unittest.mock` or `pytest-httpx`, and test both success and failure cases. See [AGENTS.md](AGENTS.md) for patterns and examples.
+    **Writing tests**: Place tests in [tests/](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/tests/) mirroring the source structure. Use fixtures from [tests/conftest.py](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/tests/conftest.py), mock external services with `unittest.mock` or `pytest-httpx`, and test both success and failure cases. See [AGENTS.md](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/AGENTS.md) for patterns and examples.
 
 4. **Commit your work**
 
-   Write clear, descriptive commit messages, optionally including a brief summary (50 characters or less) and reference issue numbers when applicable (e.g., "Fixes #123").
+    Write clear, descriptive commit messages, optionally including a brief summary (50 characters or less) and reference issue numbers when applicable (e.g., "Fixes #123").
 
-   ```bash
-   git commit -m "Add XYZ generator for synthetic data" -m "Fixes #123"
-   ```
+    ```bash
+    git commit -m "Add XYZ generator for synthetic data" -m "Fixes #123"
+    ```
 
 5. **Stay up to date**
 
-   Regularly sync your branch with upstream changes:
+    Regularly sync your branch with upstream changes:
 
-   ```bash
-   git fetch upstream
-   git merge upstream/main
-   ```
+    ```bash
+    git fetch upstream
+    git merge upstream/main
+    ```
 
 ## Submitting Changes
 
@@ -194,9 +196,9 @@ Ensure your changes meet the following criteria:
 
 1. **Push your changes** to your fork:
 
-   ```bash
-   git push origin <username>/<type-of-change>/<issue-number>-<short-description>
-   ```
+    ```bash
+    git push origin <username>/<type-of-change>/<issue-number>-<short-description>
+    ```
 
 2. **Open a pull request** on GitHub from your fork to the main repository
 
@@ -213,7 +215,7 @@ Ensure your changes meet the following criteria:
 ## Code of Conduct
 Data Designer follows the Contributor Covenant Code of Conduct. We are committed to providing a welcoming and inclusive environment for all contributors.
 
-**Please read our complete [Code of Conduct](CODE_OF_CONDUCT.md)** for full details on our standards and expectations.
+**Please read our complete [Code of Conduct](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/CODE_OF_CONDUCT.md)** for full details on our standards and expectations.
 
 ### License File Headers
 All code files that are added to this repository must include the appropriate NVIDIA copyright header:
@@ -225,17 +227,9 @@ All code files that are added to this repository must include the appropriate NV
 
 Use `make update-license-headers` to add headers automatically.
 
-## Getting Help
-Need help with your contribution?
-
-- **Documentation**: Check the [documentation](docs/) and [AGENTS.md](AGENTS.md) for additional information
-- **Issues**: Browse [existing issues](https://github.com/NVIDIA-NeMo/DataDesigner/issues) for similar questions
-- **Contact**: Reach out to the core maintainers at [data-designer@nvidia.com](mailto:data-designer@nvidia.com)
-
-
 ## Signing off on your work
 
-When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license. All contributors are asked to sign the Data Designer [Developer Certificate of Origin (DCO)](DCO) when submitting their first pull request. The process is automated by a bot that will comment on the pull request. Our DCO is the same as the Linux Foundation requires its contributors to sign.
+When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license. All contributors are asked to sign the Data Designer [Developer Certificate of Origin (DCO)](https://github.com/NVIDIA-NeMo/DataDesigner/blob/main/DCO) when submitting their first pull request. The process is automated by a bot that will comment on the pull request. Our DCO is the same as the Linux Foundation requires its contributors to sign.
 
 ---
 

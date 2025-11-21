@@ -1,9 +1,36 @@
 # 🎨 NeMo Data Designer
-[![CI](https://github.com/NVIDIA-NeMo/DataDesigner/actions/workflows/ci.yml/badge.svg)](https://github.com/NVIDIA-NeMo/DataDesigner/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Create synthetic datasets from scratch.
+[![CI](https://github.com/NVIDIA-NeMo/DataDesigner/actions/workflows/ci.yml/badge.svg)](https://github.com/NVIDIA-NeMo/DataDesigner/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.10 - 3.13](https://img.shields.io/badge/🐍_Python-3.10_|_3.11_|_3.12_|_3.13-blue.svg)](https://www.python.org/downloads/) [![NeMo Microservices](https://img.shields.io/badge/NeMo-Microservices-76b900)](https://docs.nvidia.com/nemo/microservices/latest/index.html) [![Code](https://img.shields.io/badge/Code-Documentation-8A2BE2.svg)](https://nvidia-nemo.github.io/DataDesigner/)
 
-## Installation
+**Generate high-quality synthetic datasets from scratch or using your own seed data.**
+
+---
+
+## Welcome!
+
+Data Designer helps you create synthetic datasets that go beyond simple LLM prompting. Whether you need diverse statistical distributions, meaningful correlations between fields, or validated high-quality outputs, Data Designer provides a flexible framework for building production-grade synthetic data.
+
+## What can you do with Data Designer?
+
+- **Generate diverse data** using statistical samplers, LLMs, or existing seed datasets
+- **Control relationships** between fields with dependency-aware generation
+- **Validate quality** with built-in Python, SQL, and custom local and remote validators
+- **Score outputs** using LLM-as-a-judge for quality assessment
+- **Iterate quickly** with preview mode before full-scale generation
+
+---
+
+## Quick Start
+
+### 1. Install
+
+```bash
+pip install data-designer
+```
+
+Or install from source:
 
 ```bash
 git clone https://github.com/NVIDIA-NeMo/DataDesigner.git
@@ -11,112 +38,101 @@ cd DataDesigner
 make install
 ```
 
-Test your installation:
+### 2. Set your API key
+
+Get your API key from [build.nvidia.com](https://build.nvidia.com) or [OpenAI](https://platform.openai.com/api-keys):
 
 ```bash
-make test
+export NVIDIA_API_KEY="your-api-key-here"
+# Or use OpenAI
+export OPENAI_API_KEY="your-openai-api-key-here"
 ```
 
-## Example Usage
-
+### 3. Start generating data!
 ```python
 from data_designer.essentials import (
     CategorySamplerParams,
     DataDesigner,
     DataDesignerConfigBuilder,
-    InferenceParameters,
     LLMTextColumnConfig,
-    ModelConfig,
     PersonSamplerParams,
     SamplerColumnConfig,
     SamplerType,
-    SubcategorySamplerParams,
-    UniformSamplerParams,
 )
 
-data_designer = DataDesigner(artifact_path="./artifacts")
+# Initialize with default settings
+data_designer = DataDesigner()
+config_builder = DataDesignerConfigBuilder()
 
-# The model ID is from build.nvidia.com.
-MODEL_ID = "nvidia/nvidia-nemotron-nano-9b-v2"
-
-# We choose this alias to be descriptive for our use case.
-MODEL_ALIAS = "nemotron-nano-v2"
-
-# This sets reasoning to False for the nemotron-nano-v2 model.
-SYSTEM_PROMPT = "/no_think"
-
-model_configs = [
-    ModelConfig(
-        alias=MODEL_ALIAS,
-        model=MODEL_ID,
-        inference_parameters=InferenceParameters(
-            temperature=0.5,
-            top_p=1.0,
-            max_tokens=1024,
-        ),
-    )
-]
-
-config_builder = DataDesignerConfigBuilder(model_configs=model_configs)
-
-
-config_builder.add_column(
-    SamplerColumnConfig(
-        name="customer",
-        sampler_type=SamplerType.PERSON,
-        params=PersonSamplerParams(age_range=[18, 70]),
-    )
-)
-
-
+# Add a product category
 config_builder.add_column(
     SamplerColumnConfig(
         name="product_category",
         sampler_type=SamplerType.CATEGORY,
         params=CategorySamplerParams(
-            values=[
-                "Electronics",
-                "Clothing",
-                "Home & Kitchen",
-                "Books",
-                "Home Office",
-            ],
+            values=["Electronics", "Clothing", "Home & Kitchen", "Books"],
         ),
     )
 )
 
+# Generate personalized customer reviews
 config_builder.add_column(
     LLMTextColumnConfig(
-        name="customer_review",
-        prompt=(
-            "You are a customer named {{ customer.first_name }} from {{ customer.city }}, "
-            "{{ customer.state }}. Tell me about your experience working in the "
-            "{{ product_category }} department of our company."
-        ),
-        system_prompt=SYSTEM_PROMPT,
-        model_alias=MODEL_ALIAS,
+        name="review",
+        model_alias="nvidia-text",
+        prompt="""Write a brief product review for a {{ product_category }} item you recently purchased.""",
     )
 )
 
-preview = data_designer.preview(config_builder)
-
+# Preview your dataset
+preview = data_designer.preview(config_builder=config_builder)
 preview.display_sample_record()
 ```
 
-## A note about about Person Sampling
+---
 
-> **Note:** The below usage is only temporary. The library's support for the Nemotron-Personas datasets will be evolve as we prepare to open source.
+## What's next?
 
-The PII and persona managed datasets have been updated for 25.11. If you want to use our Nemotron-Personas datasets for person / persona sampling, you need to do the following.
+### 📚 Learn more
 
-Download the datasets from NGC:
+- **[Quick Start Guide](https://nvidia-nemo.github.io/DataDesigner/quick-start/)** – Detailed walkthrough with more examples
+- **[Tutorial Notebooks](https://nvidia-nemo.github.io/DataDesigner/notebooks/intro/)** – Step-by-step interactive tutorials
+- **[Column Types](https://nvidia-nemo.github.io/DataDesigner/concepts/columns/)** – Explore samplers, LLM columns, validators, and more
+- **[Validators](https://nvidia-nemo.github.io/DataDesigner/concepts/validators/)** – Learn how to validate generated data with Python, SQL, and remote validators
+- **[Model Configuration](https://nvidia-nemo.github.io/DataDesigner/models/model-configs/)** – Configure custom models and providers
+- **[Person Sampling](https://nvidia-nemo.github.io/DataDesigner/concepts/person_sampling/)** – Learn how to sample realistic person data with demographic attributes
+
+### 🔧 Configure models via CLI
+
 ```bash
-ngc registry resource download-version --org nvidian nvidian/nemo-llm/nemotron-personas-datasets:0.0.6-slim
+data-designer config providers # Configure model providers
+data-designer config models    # Set up your model configurations
+data-designer config list      # View current settings
 ```
 
-The "slim" version is smaller for fast development. Remove the "-slim" to get the full datasets.
+### 🤝 Get involved
 
-Tell `DataDesigner` where to find the datasets:
-```python
-data_designer = DataDesigner(artifact_path="./artifacts", blob_storage_path="/path/to/nemotron-personas-datasets")
+- **[Contributing Guide](https://nvidia-nemo.github.io/DataDesigner/CONTRIBUTING)** – Help improve Data Designer
+- **[GitHub Issues](https://github.com/NVIDIA-NeMo/DataDesigner/issues)** – Report bugs or make a feature request
+
+---
+
+## License
+
+Apache License 2.0 – see [LICENSE](LICENSE) for details.
+
+---
+
+## Citation
+
+If you use NeMo Data Designer in your research, please cite it using the following BibTeX entry:
+
+```bibtex
+@misc{nemo-data-designer,
+  author = {The NeMo Data Designer Team},
+  title = {NeMo Data Designer: A framework for generating synthetic data from scratch or based on your own seed data},
+  howpublished = {\url{https://github.com/NVIDIA-NeMo/DataDesigner}},
+  year = {2025},
+  note = {GitHub Repository},
+}
 ```
