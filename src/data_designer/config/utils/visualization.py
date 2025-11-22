@@ -195,6 +195,63 @@ def display_sample_record(
         )
         render_list.append(pad_console_element(panel))
 
+    # Handle image generation columns
+    image_columns = config_builder.get_columns_of_type(DataDesignerColumnType.IMAGE_GENERATION)
+    if len(image_columns) > 0:
+        # Check if we're in a Jupyter environment
+        try:
+            from IPython import get_ipython
+            from IPython.display import Image as IPImage
+            from IPython.display import display as ipy_display
+
+            ipython = get_ipython()
+            in_notebook = ipython is not None and "IPKernelApp" in ipython.config
+        except (ImportError, AttributeError):
+            in_notebook = False
+
+        for col in image_columns:
+            if col.drop:
+                continue
+
+            image_url = record[col.name]
+
+            if in_notebook:
+                # Display image in notebook
+                table = Table(title=f"🎨 {col.name}", **table_kws)
+                table.add_column("URL")
+                table.add_row(str(image_url))
+                render_list.append(pad_console_element(table))
+
+                # Display the actual image
+                try:
+                    ipy_display(IPImage(url=image_url, width=600))
+                except Exception:
+                    pass  # If image display fails, we've already shown the URL
+            else:
+                # In terminal, just show URL
+                table = Table(title=f"🎨 {col.name}", **table_kws)
+                table.add_column("URL")
+                table.add_row(str(image_url))
+                render_list.append(pad_console_element(table))
+
+    # Handle embedding columns
+    embedding_columns = config_builder.get_columns_of_type(DataDesignerColumnType.EMBEDDING)
+    if len(embedding_columns) > 0:
+        table = Table(title="Embeddings", **table_kws)
+        table.add_column("Name")
+        table.add_column("Value")
+        for col in embedding_columns:
+            if not col.drop:
+                embedding = record[col.name]
+                if isinstance(embedding, (list, np.ndarray)):
+                    # Show first few values and vector length
+                    vector_preview = str(embedding[:5])[:-1] + ", ...]" if len(embedding) > 5 else str(embedding)
+                    value_str = f"Vector(dim={len(embedding)}): {vector_preview}"
+                else:
+                    value_str = str(embedding)
+                table.add_row(col.name, value_str)
+        render_list.append(pad_console_element(table))
+
     validation_columns = config_builder.get_columns_of_type(DataDesignerColumnType.VALIDATION)
     if len(validation_columns) > 0:
         table = Table(title="Validation", **table_kws)

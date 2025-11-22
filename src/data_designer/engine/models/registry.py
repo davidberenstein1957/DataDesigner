@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 
-from data_designer.config.models import ModelConfig, ModelType
+from data_designer.config.models import ModelConfig
 from data_designer.engine.model_provider import ModelProvider, ModelProviderRegistry
 from data_designer.engine.models.facade import ModelFacade
 from data_designer.engine.models.litellm_overrides import apply_litellm_patches
@@ -88,39 +88,55 @@ class ModelRegistry:
                 raise e
 
     def _run_model_specific_health_check(self, model: ModelFacade) -> None:
-        """Run health check appropriate for the model type."""
-        if model.model_type == ModelType.EMBEDDING:
-            # For embedding models, test with a simple embedding request
-            # For asymmetric models (like NVIDIA's), include input_type
-            extra_body = {"input_type": "query"}  # Default to query for health check
+        """Run health check using waterfall approach.
+
+        Tries multiple methods to determine if the model is accessible:
+        1. Chat completion (most common)
+        2. Embedding generation
+        3. Image generation (future support)
+
+        Only fails if all methods fail, indicating the model is truly inaccessible.
+        """
+        errors = []
+
+        # Try 1: Chat completion (most common case)
+        try:
+            model.generate(
+                prompt="Hello!",
+                parser=lambda x: x,
+                system_prompt="You are a helpful assistant.",
+                max_correction_steps=0,
+                max_conversation_restarts=0,
+                skip_usage_tracking=True,
+                purpose="running health checks",
+            )
+            return  # Success!
+        except Exception as e:
+            errors.append(f"chat: {str(e)[:50]}")
+
+        # Try 2: Embedding
+        try:
             model.embedding(
                 input_text="test",
                 skip_usage_tracking=True,
-                extra_body=extra_body,
+                extra_body={"input_type": "query"},  # For asymmetric models
             )
-        elif model.model_type in [ModelType.CHAT, ModelType.COMPLETION, ModelType.VISION]:
-            # For chat/completion/vision models, use generate
-            model.generate(
-                prompt="Hello!",
-                parser=lambda x: x,
-                system_prompt="You are a helpful assistant.",
-                max_correction_steps=0,
-                max_conversation_restarts=0,
+            return  # Success!
+        except Exception as e:
+            errors.append(f"embedding: {str(e)[:50]}")
+
+        # Try 3: Image generation
+        try:
+            model.image_generation(
+                prompt="test image",
                 skip_usage_tracking=True,
-                purpose="running health checks",
             )
-        else:
-            # For unknown types, try chat completion as default
-            logger.warning(f"  |-- ⚠️ Unknown model type {model.model_type}, attempting chat completion health check")
-            model.generate(
-                prompt="Hello!",
-                parser=lambda x: x,
-                system_prompt="You are a helpful assistant.",
-                max_correction_steps=0,
-                max_conversation_restarts=0,
-                skip_usage_tracking=True,
-                purpose="running health checks",
-            )
+            return  # Success!
+        except Exception as e:
+            errors.append(f"image_generation: {str(e)[:50]}")
+
+        # All methods failed - model is inaccessible
+        raise Exception(f"Model failed all health checks. Errors: {'; '.join(errors)}")
 
     def _set_model_configs(self, model_configs: list[ModelConfig]) -> None:
         model_configs = model_configs or []

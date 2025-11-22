@@ -8,6 +8,7 @@ from ..config.analysis.column_profilers import JudgeScoreProfilerConfig
 from ..config.column_configs import (
     EmbeddingColumnConfig,
     ExpressionColumnConfig,
+    ImageGenerationColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
     LLMStructuredColumnConfig,
@@ -32,7 +33,6 @@ from ..config.models import (
     ModalityContext,
     ModalityDataType,
     ModelConfig,
-    ModelType,
     UniformDistribution,
     UniformDistributionParams,
 )
@@ -100,6 +100,7 @@ __all__ = [
     "InfoType",
     "ImageContext",
     "ImageFormat",
+    "ImageGenerationColumnConfig",
     "InferenceParameters",
     "JudgeScoreProfilerConfig",
     "LLMCodeColumnConfig",
@@ -113,7 +114,6 @@ __all__ = [
     "ModalityContext",
     "ModalityDataType",
     "ModelConfig",
-    "ModelType",
     "PartitionBlock",
     "PersonSamplerParams",
     "PersonFromFakerSamplerParams",

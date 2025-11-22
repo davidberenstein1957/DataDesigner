@@ -24,15 +24,6 @@ from .utils.io_helpers import smart_load_yaml
 logger = logging.getLogger(__name__)
 
 
-class ModelType(str, Enum):
-    """Enum representing different types of model capabilities."""
-
-    CHAT = "chat"
-    COMPLETION = "completion"
-    EMBEDDING = "embedding"
-    VISION = "vision"
-
-
 class Modality(str, Enum):
     IMAGE = "image"
 
@@ -219,7 +210,6 @@ class ModelConfig(ConfigBase):
     model: str
     inference_parameters: InferenceParameters = Field(default_factory=InferenceParameters)
     provider: Optional[str] = None
-    model_type: ModelType = ModelType.CHAT
 
 
 class ModelProvider(ConfigBase):

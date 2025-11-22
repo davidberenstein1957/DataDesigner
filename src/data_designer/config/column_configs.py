@@ -309,8 +309,7 @@ class EmbeddingColumnConfig(SingleColumnConfig):
         input_text: Jinja2 template for the text to embed. Can reference other columns
             (e.g., "{{ title }} - {{ description }}"). Must be a valid Jinja2 template.
         model_alias: Alias of the embedding model configuration to use for generation.
-            Must match a model alias defined when initializing the DataDesignerConfigBuilder,
-            and should ideally be configured with `model_type=ModelType.EMBEDDING`.
+            Must match a model alias defined when initializing the DataDesignerConfigBuilder.
         normalize: Whether to normalize the embedding vectors to unit length. Default: False.
         input_type: For asymmetric embedding models, specify "query" or "passage".
             Defaults to "passage" for document embeddings. Only needed for models like
@@ -375,6 +374,113 @@ class EmbeddingColumnConfig(SingleColumnConfig):
             InvalidConfigError: If input_text contains invalid Jinja2 syntax.
         """
         assert_valid_jinja2_template(self.input_text)
+        return self
+
+
+class ImageGenerationColumnConfig(SingleColumnConfig):
+    """Configuration for generating image columns using image generation models.
+
+    Image generation columns create images from text prompts using models like DALL-E,
+    Stable Diffusion, or other OpenAI-compatible image generation endpoints. The generated
+    images can be stored as URLs or base64-encoded data.
+
+    Attributes:
+        prompt: Jinja2 template for the image generation prompt. Can reference other columns
+            (e.g., "A photo of {{ object_name }} in {{ style }} style"). Must be a valid
+            Jinja2 template.
+        model_alias: Alias of the image generation model configuration to use for generation.
+            Must match a model alias defined when initializing the DataDesignerConfigBuilder.
+        size: Image dimensions as a string. Common values: "1024x1024", "1792x1024", "1024x1792".
+            Default: "1024x1024". Check your model's documentation for supported sizes.
+        quality: Image quality level. Options: "standard", "hd". Default: "standard".
+            HD quality produces higher quality images but may be more expensive.
+        style: Image generation style. Options: "vivid", "natural". Default: "vivid".
+            "vivid" produces more dramatic/artistic images, "natural" is more realistic.
+        response_format: Output format for generated images. Options: "url", "b64_json".
+            Default: "url". URLs are recommended for most use cases. Base64 encoding is
+            useful when you need to store images directly in the dataset.
+        column_type: Discriminator field, always "image-generation" for this configuration type.
+
+    Example:
+        ```python
+        from data_designer.essentials import (
+            DataDesignerConfigBuilder,
+            ImageGenerationColumnConfig,
+            SamplerColumnConfig,
+            CategorySamplerParams,
+            SamplerType,
+            ModelConfig,
+        )
+
+        # Configure image generation model
+        models = [
+            ModelConfig(
+                alias="dalle",
+                model="dall-e-3",
+            )
+        ]
+
+        config_builder = DataDesignerConfigBuilder(model_configs=models)
+
+        # Create columns for prompt components
+        config_builder.add_column(
+            SamplerColumnConfig(
+                name="subject",
+                sampler_type=SamplerType.CATEGORY,
+                params=CategorySamplerParams(values=["cat", "dog", "robot"]),
+            )
+        )
+
+        config_builder.add_column(
+            SamplerColumnConfig(
+                name="style",
+                sampler_type=SamplerType.CATEGORY,
+                params=CategorySamplerParams(values=["watercolor", "digital art", "photograph"]),
+            )
+        )
+
+        # Generate images from composed prompt
+        config_builder.add_column(
+            ImageGenerationColumnConfig(
+                name="generated_image",
+                model_alias="dalle",
+                prompt="A {{ style }} image of a {{ subject }}",
+                size="1024x1024",
+                quality="hd",
+                style="vivid",
+            )
+        )
+        ```
+    """
+
+    prompt: str
+    model_alias: str
+    size: str = "1024x1024"
+    quality: Literal["standard", "hd"] = "standard"
+    style: Literal["vivid", "natural"] = "vivid"
+    response_format: Literal["url", "b64_json"] = "url"
+    column_type: Literal["image-generation"] = "image-generation"
+
+    @property
+    def required_columns(self) -> list[str]:
+        """Get columns referenced in the prompt template.
+
+        Returns:
+            List of unique column names referenced in Jinja2 template.
+        """
+        return list(set(get_prompt_template_keywords(self.prompt)))
+
+    @model_validator(mode="after")
+    def assert_prompt_valid_jinja(self) -> Self:
+        """Validate that prompt is a valid Jinja2 template.
+
+        Returns:
+            The validated instance.
+
+        Raises:
+            InvalidConfigError: If prompt contains invalid Jinja2 syntax.
+        """
+        assert_valid_jinja2_template(self.prompt)
         return self
 
 

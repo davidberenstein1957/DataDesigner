@@ -6,6 +6,7 @@ import logging
 
 from data_designer.config.column_configs import (
     EmbeddingColumnConfig,
+    ImageGenerationColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
     LLMStructuredColumnConfig,
@@ -236,6 +237,83 @@ class EmbeddingColumnGenerator(ColumnGenerator[EmbeddingColumnConfig]):
                 embedding_vector = (embedding_array / norm).tolist()
 
         data[self.config.name] = embedding_vector
+
+        return data
+
+    def log_pre_generation(self) -> None:
+        emoji = COLUMN_TYPE_EMOJI_MAP[self.config.column_type]
+        logger.info(f"{emoji} Preparing {self.config.column_type} column generation")
+        logger.info(f"  |-- column name: {self.config.name!r}")
+        logger.info(f"  |-- model config:\n{self.model_config.model_dump_json(indent=4)}")
+        if self.model_config.provider is None:
+            logger.info(f"  |-- default model provider: {self._get_provider_name()!r}")
+
+    def _get_provider_name(self) -> str:
+        model_alias = self.model_config.alias
+        provider = self.resource_provider.model_registry.get_model_provider(model_alias=model_alias)
+        return provider.name
+
+
+class ImageGenerationColumnGenerator(ColumnGenerator[ImageGenerationColumnConfig]):
+    """Generator for image generation columns using image generation models."""
+
+    @staticmethod
+    def metadata() -> GeneratorMetadata:
+        return GeneratorMetadata(
+            name="image_generation_generator",
+            description="Generate images from text prompts",
+            generation_strategy=GenerationStrategy.CELL_BY_CELL,
+            required_resources=[ResourceType.MODEL_REGISTRY],
+        )
+
+    @functools.cached_property
+    def model(self) -> ModelFacade:
+        return self.resource_provider.model_registry.get_model(model_alias=self.config.model_alias)
+
+    @functools.cached_property
+    def model_config(self) -> ModelConfig:
+        return self.resource_provider.model_registry.get_model_config(model_alias=self.config.model_alias)
+
+    @functools.cached_property
+    def prompt_renderer(self) -> RecordBasedPromptRenderer:
+        return RecordBasedPromptRenderer(
+            response_recipe=None,
+            error_message_context={
+                "column_name": self.config.name,
+                "column_type": self.config.column_type,
+                "model_alias": self.config.model_alias,
+            },
+        )
+
+    def generate(self, data: dict) -> dict:
+        deserialized_record = deserialize_json_values(data)
+
+        # Render the prompt template with row data
+        rendered_prompt = self.prompt_renderer.render(
+            record=deserialized_record,
+            prompt_template=self.config.prompt,
+            prompt_type=PromptType.USER_PROMPT,
+        )
+
+        # Prepare kwargs for image generation
+        image_kwargs = self.model_config.inference_parameters.generate_kwargs.copy()
+        image_kwargs.update(
+            {
+                "size": self.config.size,
+                "quality": self.config.quality,
+                "style": self.config.style,
+                "response_format": self.config.response_format,
+            }
+        )
+
+        # Generate image
+        response = self.model.image_generation(rendered_prompt, **image_kwargs)
+
+        # Extract the generated image (URL or base64 data)
+        if self.config.response_format == "url":
+            data[self.config.name] = response.data[0]["url"]
+        else:  # b64_json
+            data[self.config.name] = response.data[0]["b64_json"]
 
         return data
 

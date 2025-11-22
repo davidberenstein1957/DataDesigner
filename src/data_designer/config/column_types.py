@@ -9,6 +9,7 @@ from ..plugin_manager import PluginManager
 from .column_configs import (
     EmbeddingColumnConfig,
     ExpressionColumnConfig,
+    ImageGenerationColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
     LLMStructuredColumnConfig,
@@ -26,6 +27,7 @@ plugin_manager = PluginManager()
 ColumnConfigT: TypeAlias = Union[
     EmbeddingColumnConfig,
     ExpressionColumnConfig,
+    ImageGenerationColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
     LLMStructuredColumnConfig,
@@ -46,6 +48,7 @@ COLUMN_TYPE_EMOJI_MAP = {
     "general": "⚛️",  # possible analysis column type
     DataDesignerColumnType.EMBEDDING: "🧬",
     DataDesignerColumnType.EXPRESSION: "🧩",
+    DataDesignerColumnType.IMAGE_GENERATION: "🎨",
     DataDesignerColumnType.LLM_CODE: "💻",
     DataDesignerColumnType.LLM_JUDGE: "⚖️",
     DataDesignerColumnType.LLM_STRUCTURED: "🗂️",
@@ -65,6 +68,7 @@ def column_type_used_in_execution_dag(column_type: Union[str, DataDesignerColumn
     dag_column_types = {
         DataDesignerColumnType.EMBEDDING,
         DataDesignerColumnType.EXPRESSION,
+        DataDesignerColumnType.IMAGE_GENERATION,
         DataDesignerColumnType.LLM_CODE,
         DataDesignerColumnType.LLM_JUDGE,
         DataDesignerColumnType.LLM_STRUCTURED,
@@ -80,6 +84,7 @@ def column_type_is_llm_generated(column_type: Union[str, DataDesignerColumnType]
     column_type = resolve_string_enum(column_type, DataDesignerColumnType)
     llm_generated_column_types = {
         DataDesignerColumnType.EMBEDDING,
+        DataDesignerColumnType.IMAGE_GENERATION,
         DataDesignerColumnType.LLM_TEXT,
         DataDesignerColumnType.LLM_CODE,
         DataDesignerColumnType.LLM_STRUCTURED,

@@ -9,9 +9,9 @@ import logging
 from typing import Any
 
 from litellm.types.router import DeploymentTypedDict, LiteLLM_Params
-from litellm.types.utils import EmbeddingResponse, ModelResponse, TextCompletionResponse
+from litellm.types.utils import EmbeddingResponse, ImageResponse, ModelResponse, TextCompletionResponse
 
-from data_designer.config.models import ModelConfig, ModelProvider, ModelType
+from data_designer.config.models import ModelConfig, ModelProvider
 from data_designer.engine.model_provider import ModelProviderRegistry
 from data_designer.engine.models.errors import (
     GenerationValidationFailureError,
@@ -60,10 +60,6 @@ class ModelFacade:
     @property
     def usage_stats(self) -> ModelUsageStats:
         return self._usage_stats
-
-    @property
-    def model_type(self) -> ModelType:
-        return self._model_config.model_type
 
     def completion(self, messages: list[dict[str, str]], skip_usage_tracking: bool = False, **kwargs) -> ModelResponse:
         logger.debug(
@@ -165,6 +161,57 @@ class ModelFacade:
         finally:
             if not skip_usage_tracking:
                 self._track_usage_from_embedding(response)
+
+    def image_generation(self, prompt: str, skip_usage_tracking: bool = False, **kwargs) -> ImageResponse:
+        """Generate an image from a text prompt.
+
+        Args:
+            prompt: Text description of the image to generate.
+            skip_usage_tracking: Whether to skip tracking usage statistics.
+            **kwargs: Additional arguments (size, quality, style, response_format, etc.).
+
+        Returns:
+            ImageResponse from LiteLLM containing generated image(s).
+
+        Example:
+            ```python
+            response = model.image_generation(
+                prompt="A futuristic city at sunset",
+                size="1024x1024",
+                quality="hd",
+                style="vivid",
+                response_format="url"
+            )
+            image_url = response.data[0]["url"]
+            ```
+        """
+        logger.debug(
+            f"Generating image with model {self.model_name!r}...",
+            extra={
+                "model": self.model_name,
+                "prompt": prompt[:50] + "..." if len(prompt) > 50 else prompt,
+                "sensitive": True,
+            },
+        )
+        response = None
+        if self.model_provider.extra_body:
+            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **self.model_provider.extra_body}
+        try:
+            response = self._router.image_generation(prompt=prompt, model=self.model_name, **kwargs)
+            logger.debug(
+                f"Received image from model {self.model_name!r}",
+                extra={
+                    "model": self.model_name,
+                    "image_count": len(response.data) if response.data else 0,
+                    "usage": self._usage_stats.model_dump(),
+                },
+            )
+            return response
+        except Exception as e:
+            raise e
+        finally:
+            if not skip_usage_tracking:
+                self._track_usage_from_image_generation(response)
 
     @catch_llm_exceptions
     def generate(
@@ -315,3 +362,15 @@ class ModelFacade:
                 ),
                 request_usage=RequestUsageStats(successful_requests=1, failed_requests=0),
             )
+
+    def _track_usage_from_image_generation(self, response: ImageResponse | None) -> None:
+        """Track usage statistics from an image generation response.
+
+        Args:
+            response: The image generation response from LiteLLM, or None if request failed.
+        """
+        if response is None:
+            self._usage_stats.extend(request_usage=RequestUsageStats(successful_requests=0, failed_requests=1))
+            return
+        # Image generation APIs typically don't return token counts, only track requests
+        self._usage_stats.extend(request_usage=RequestUsageStats(successful_requests=1, failed_requests=0))
