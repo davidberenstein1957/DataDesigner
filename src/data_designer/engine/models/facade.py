@@ -67,11 +67,9 @@ class ModelFacade:
             extra={"model": self.model_name, "messages": messages, "sensitive": True},
         )
         response = None
-        kwargs = {**self._model_config.inference_parameters.generate_kwargs, **kwargs}
-        if self.model_provider.extra_body:
-            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **self.model_provider.extra_body}
+        kwargs = self.consolidate_kwargs(**kwargs)
         try:
-            response = self._router.completion(self.model_name, messages, **kwargs)
+            response = self._router.completion(model=self.model_name, messages=messages, **kwargs)
             logger.debug(
                 f"Received completion from model {self.model_name!r}",
                 extra={
@@ -85,8 +83,14 @@ class ModelFacade:
         except Exception as e:
             raise e
         finally:
-            if not skip_usage_tracking:
+            if not skip_usage_tracking and response is not None:
                 self._track_usage(response)
+
+    def consolidate_kwargs(self, **kwargs) -> dict[str, Any]:
+        kwargs = {**self._model_config.inference_parameters.generate_kwargs, **kwargs}
+        if self.model_provider.extra_body:
+            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **self.model_provider.extra_body}
+        return kwargs
 
     @catch_llm_exceptions
     def generate_text_embeddings(
@@ -100,9 +104,8 @@ class ModelFacade:
                 "sensitive": True,
             },
         )
-        kwargs |= self._model_config.inference_parameters.generate_kwargs
-        if self.model_provider.extra_body:
-            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **self.model_provider.extra_body}
+        kwargs = self.consolidate_kwargs(**kwargs)
+        response = None
         try:
             response = self._router.embedding(model=self.model_name, input=input_texts, **kwargs)
             logger.debug(
@@ -120,7 +123,7 @@ class ModelFacade:
         except Exception as e:
             raise e
         finally:
-            if not skip_usage_tracking:
+            if not skip_usage_tracking and response is not None:
                 self._track_usage_from_embedding(response)
 
     @catch_llm_exceptions
