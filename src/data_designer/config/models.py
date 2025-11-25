@@ -215,8 +215,8 @@ class ModelConfig(ConfigBase):
     alias: str
     model: str
     inference_parameters: InferenceParameters = Field(default_factory=InferenceParameters)
-    provider: Optional[str] = None
     generation_type: GenerationType = GenerationType.CHAT_COMPLETION
+    provider: Optional[str] = None
 
 
 class ModelProvider(ConfigBase):

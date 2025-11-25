@@ -212,7 +212,7 @@ def test_load_model_configs():
         ModelConfig(alias="test", model="test"),
         ModelConfig(alias="test2", model="test2"),
     ]
-    stub_model_configs_dict_list = [mc.model_dump() for mc in stub_model_configs]
+    stub_model_configs_dict_list = [mc.model_dump(mode="json") for mc in stub_model_configs]
     assert load_model_configs([]) == []
     assert load_model_configs(stub_model_configs) == stub_model_configs
 

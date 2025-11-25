@@ -103,7 +103,8 @@ def resolve_seed_default_model_settings() -> None:
             f"🍾 Default model configs were not found, so writing the following to {str(MODEL_CONFIGS_FILE_PATH)!r}"
         )
         save_config_file(
-            MODEL_CONFIGS_FILE_PATH, {"model_configs": [mc.model_dump() for mc in get_builtin_model_configs()]}
+            MODEL_CONFIGS_FILE_PATH,
+            {"model_configs": [mc.model_dump(mode="json") for mc in get_builtin_model_configs()]},
         )
 
     if not MODEL_PROVIDERS_FILE_PATH.exists():
@@ -111,7 +112,7 @@ def resolve_seed_default_model_settings() -> None:
             f"🪄  Default model providers were not found, so writing the following to {str(MODEL_PROVIDERS_FILE_PATH)!r}"
         )
         save_config_file(
-            MODEL_PROVIDERS_FILE_PATH, {"providers": [p.model_dump() for p in get_builtin_model_providers()]}
+            MODEL_PROVIDERS_FILE_PATH, {"providers": [p.model_dump(mode="json") for p in get_builtin_model_providers()]}
         )
 
     if not MANAGED_ASSETS_PATH.exists():

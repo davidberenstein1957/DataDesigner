@@ -54,7 +54,7 @@ def stub_data_designer_builder(stub_data_designer_builder_config_str):
 
 
 def test_loading_model_configs_in_constructor(stub_model_configs):
-    stub_model_configs_dict = [mc.model_dump() for mc in stub_model_configs]
+    stub_model_configs_dict = [mc.model_dump(mode="json") for mc in stub_model_configs]
     # test loading model configs from a list
     builder = DataDesignerConfigBuilder(model_configs=stub_model_configs)
     assert builder.model_configs == stub_model_configs
