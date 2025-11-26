@@ -4,20 +4,9 @@
 import functools
 import logging
 
-from data_designer.config.column_configs import (
-    LLMCodeColumnConfig,
-    LLMJudgeColumnConfig,
-    LLMStructuredColumnConfig,
-    LLMTextColumnConfig,
-)
 from data_designer.config.column_types import COLUMN_TYPE_EMOJI_MAP
 from data_designer.config.models import InferenceParameters, ModelConfig
 from data_designer.config.utils.constants import REASONING_TRACE_COLUMN_POSTFIX
-from data_designer.engine.column_generators.generators.base import (
-    ColumnGenerator,
-    GenerationStrategy,
-    GeneratorMetadata,
-)
 from data_designer.engine.column_generators.utils.prompt_renderer import (
     PromptType,
     RecordBasedPromptRenderer,
@@ -26,7 +15,6 @@ from data_designer.engine.column_generators.utils.prompt_renderer import (
 from data_designer.engine.models.facade import ModelFacade
 from data_designer.engine.models.recipes.base import ResponseRecipe
 from data_designer.engine.processing.utils import deserialize_json_values
-from data_designer.engine.resources.resource_provider import ResourceType
 
 DEFAULT_MAX_CONVERSATION_RESTARTS = 5
 DEFAULT_MAX_CONVERSATION_CORRECTION_STEPS = 0
@@ -35,7 +23,7 @@ DEFAULT_MAX_CONVERSATION_CORRECTION_STEPS = 0
 logger = logging.getLogger(__name__)
 
 
-class WithLLMGeneration:
+class WithModelGeneration:
     @functools.cached_property
     def model(self) -> ModelFacade:
         return self.resource_provider.model_registry.get_model(model_alias=self.config.model_alias)
@@ -59,6 +47,21 @@ class WithLLMGeneration:
             },
         )
 
+    def log_pre_generation(self) -> None:
+        emoji = COLUMN_TYPE_EMOJI_MAP[self.config.column_type]
+        logger.info(f"{emoji} Preparing {self.config.column_type} column generation")
+        logger.info(f"  |-- column name: {self.config.name!r}")
+        logger.info(f"  |-- model config:\n{self.model_config.model_dump_json(indent=4)}")
+        if self.model_config.provider is None:
+            logger.info(f"  |-- default model provider: {self._get_provider_name()!r}")
+
+    def _get_provider_name(self) -> str:
+        model_alias = self.model_config.alias
+        provider = self.resource_provider.model_registry.get_model_provider(model_alias=model_alias)
+        return provider.name
+
+
+class WithCompletionGeneration(WithModelGeneration):
     @functools.cached_property
     def response_recipe(self) -> ResponseRecipe:
         return create_response_recipe(self.config, self.model_config)
@@ -104,68 +107,3 @@ class WithLLMGeneration:
             data[self.config.name + REASONING_TRACE_COLUMN_POSTFIX] = reasoning_trace
 
         return data
-
-    def log_pre_generation(self) -> None:
-        emoji = COLUMN_TYPE_EMOJI_MAP[self.config.column_type]
-        logger.info(f"{emoji} Preparing {self.config.column_type} column generation")
-        logger.info(f"  |-- column name: {self.config.name!r}")
-        logger.info(f"  |-- model config:\n{self.model_config.model_dump_json(indent=4)}")
-        if self.model_config.provider is None:
-            logger.info(f"  |-- default model provider: {self._get_provider_name()!r}")
-
-    def _get_provider_name(self) -> str:
-        model_alias = self.model_config.alias
-        provider = self.resource_provider.model_registry.get_model_provider(model_alias=model_alias)
-        return provider.name
-
-
-class LLMTextCellGenerator(WithLLMGeneration, ColumnGenerator[LLMTextColumnConfig]):
-    @staticmethod
-    def metadata() -> GeneratorMetadata:
-        return GeneratorMetadata(
-            name="llm_text_generator",
-            description="Generate a new dataset cell from a prompt template",
-            generation_strategy=GenerationStrategy.CELL_BY_CELL,
-            required_resources=[ResourceType.MODEL_REGISTRY],
-        )
-
-
-class LLMCodeCellGenerator(WithLLMGeneration, ColumnGenerator[LLMCodeColumnConfig]):
-    @staticmethod
-    def metadata() -> GeneratorMetadata:
-        return GeneratorMetadata(
-            name="llm_code_generator",
-            description="Generate a new dataset cell from a prompt template",
-            generation_strategy=GenerationStrategy.CELL_BY_CELL,
-            required_resources=[ResourceType.MODEL_REGISTRY],
-        )
-
-
-class LLMStructuredCellGenerator(WithLLMGeneration, ColumnGenerator[LLMStructuredColumnConfig]):
-    @staticmethod
-    def metadata() -> GeneratorMetadata:
-        return GeneratorMetadata(
-            name="llm_structured_generator",
-            description="Generate a new dataset cell from a prompt template",
-            generation_strategy=GenerationStrategy.CELL_BY_CELL,
-            required_resources=[ResourceType.MODEL_REGISTRY],
-        )
-
-
-class LLMJudgeCellGenerator(WithLLMGeneration, ColumnGenerator[LLMJudgeColumnConfig]):
-    @staticmethod
-    def metadata() -> GeneratorMetadata:
-        return GeneratorMetadata(
-            name="llm_judge_generator",
-            description="Judge a new dataset cell based on a set of rubrics",
-            generation_strategy=GenerationStrategy.CELL_BY_CELL,
-            required_resources=[ResourceType.MODEL_REGISTRY],
-        )
-
-    @property
-    def max_conversation_correction_steps(self) -> int:
-        return DEFAULT_MAX_CONVERSATION_CORRECTION_STEPS
-
-    @property
-    def max_conversation_restarts(self) -> int:
-        return 2 * DEFAULT_MAX_CONVERSATION_RESTARTS
