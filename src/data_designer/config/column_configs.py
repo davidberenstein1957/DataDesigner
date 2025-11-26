@@ -388,14 +388,15 @@ class EmbeddingColumnConfig(SingleColumnConfig):
         column_type: Discriminator field, always "embedding" for this configuration type.
         target_column: The column to generate embeddings for.
         model_alias: The model to use for embedding generation.
-        chunk_separator: Optional separator to split the text in the target column into chunks. For example, if chunk_separator
-            is '\n', the text will be split into chunks of text separated by newlines and embeddings generated for each chunk.
+        chunk_pattern: Optional regex pattern to split the text in the target column into chunks. For example, if chunk_pattern
+            is r'\n+', the text will be split into chunks using one or more newlines as separators and embeddings generated for each chunk.
+            If not provided, the entire text will be embedded as a single chunk.
     """
 
     column_type: Literal["embedding"] = "embedding"
     target_column: str
     model_alias: str
-    chunk_separator: Optional[str] = None
+    chunk_pattern: Optional[str] = None
 
     @property
     def required_columns(self) -> list[str]:
