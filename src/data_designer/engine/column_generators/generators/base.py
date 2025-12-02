@@ -9,7 +9,7 @@ from typing import overload
 import pandas as pd
 
 from data_designer.config.column_types import COLUMN_TYPE_EMOJI_MAP
-from data_designer.config.models import InferenceParameters, ModelConfig
+from data_designer.config.models import BaseInferenceParameters, ModelConfig
 from data_designer.config.utils.type_helpers import StrEnum
 from data_designer.engine.column_generators.utils.prompt_renderer import (
     RecordBasedPromptRenderer,
@@ -81,7 +81,7 @@ class WithModelGeneration:
         return self.resource_provider.model_registry.get_model_config(model_alias=self.config.model_alias)
 
     @functools.cached_property
-    def inference_parameters(self) -> InferenceParameters:
+    def inference_parameters(self) -> BaseInferenceParameters:
         return self.model_config.inference_parameters
 
     @functools.cached_property
