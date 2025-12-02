@@ -242,8 +242,24 @@ class EmbeddingInferenceParameters(BaseInferenceParameters):
         return result
 
 
+class ImageGenerationInferenceParameters(BaseInferenceParameters):
+    quality: str
+    size: str
+    output_format: Optional[ModalityDataType] = ModalityDataType.BASE64
+
+    @property
+    def generate_kwargs(self) -> dict[str, Union[float, int]]:
+        result = super().generate_kwargs
+        result["size"] = self.size
+        result["quality"] = self.quality
+        result["response_format"] = (
+            self.output_format.value if self.output_format == ModalityDataType.URL else "b64_json"
+        )
+        return result
+
+
 InferenceParametersT: TypeAlias = Union[
-    InferenceParameters, CompletionInferenceParameters, EmbeddingInferenceParameters
+    InferenceParameters, CompletionInferenceParameters, EmbeddingInferenceParameters, ImageGenerationInferenceParameters
 ]
 
 
@@ -272,6 +288,8 @@ class ModelConfig(ConfigBase):
             return GenerationType.CHAT_COMPLETION
         elif isinstance(self.inference_parameters, EmbeddingInferenceParameters):
             return GenerationType.EMBEDDING
+        elif isinstance(self.inference_parameters, ImageGenerationInferenceParameters):
+            return GenerationType.IMAGE_GENERATION
         else:
             raise ValueError(f"Unsupported inference parameters type: {type(self.inference_parameters)}")
 

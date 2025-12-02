@@ -9,7 +9,7 @@ import logging
 from typing import Any
 
 from litellm.types.router import DeploymentTypedDict, LiteLLM_Params
-from litellm.types.utils import EmbeddingResponse, ModelResponse
+from litellm.types.utils import EmbeddingResponse, ImageResponse, ImageUsage, ModelResponse
 
 from data_designer.config.models import GenerationType, ModelConfig, ModelProvider
 from data_designer.engine.model_provider import ModelProviderRegistry
@@ -130,6 +130,27 @@ class ModelFacade:
         finally:
             if not skip_usage_tracking and response is not None:
                 self._track_usage_from_embedding(response)
+
+    @catch_llm_exceptions
+    def generate_image(self, prompt: str, skip_usage_tracking: bool = False, **kwargs) -> ImageResponse:
+        logger.debug(
+            f"Generating image with model {self.model_name!r}...",
+            extra={"model": self.model_name, "prompt": prompt},
+        )
+        kwargs = self.consolidate_kwargs(**kwargs)
+        response = None
+        try:
+            response = self._router.image_generation(prompt=prompt, model=self.model_name, **kwargs)
+            logger.debug(
+                f"Received image from model {self.model_name!r}",
+                extra={"model": self.model_name, "response": response},
+            )
+            return response
+        except Exception as e:
+            raise e
+        finally:
+            if not skip_usage_tracking and response is not None:
+                self._track_usage_from_image(response)
 
     @catch_llm_exceptions
     def generate(
@@ -277,6 +298,19 @@ class ModelFacade:
                 token_usage=TokenUsageStats(
                     prompt_tokens=response.usage.prompt_tokens,
                     completion_tokens=0,
+                ),
+                request_usage=RequestUsageStats(successful_requests=1, failed_requests=0),
+            )
+
+    def _track_usage_from_image(self, response: ImageResponse | None) -> None:
+        if response is None:
+            self._usage_stats.extend(request_usage=RequestUsageStats(successful_requests=0, failed_requests=1))
+            return
+        if response.usage is not None and isinstance(response.usage, ImageUsage):
+            self._usage_stats.extend(
+                token_usage=TokenUsageStats(
+                    prompt_tokens=response.usage.input_tokens,
+                    completion_tokens=response.usage.output_tokens,
                 ),
                 request_usage=RequestUsageStats(successful_requests=1, failed_requests=0),
             )

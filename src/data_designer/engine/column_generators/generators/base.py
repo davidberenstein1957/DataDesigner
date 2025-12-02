@@ -11,9 +11,6 @@ import pandas as pd
 from data_designer.config.column_types import COLUMN_TYPE_EMOJI_MAP
 from data_designer.config.models import BaseInferenceParameters, ModelConfig
 from data_designer.config.utils.type_helpers import StrEnum
-from data_designer.engine.column_generators.utils.prompt_renderer import (
-    RecordBasedPromptRenderer,
-)
 from data_designer.engine.configurable_task import ConfigurableTask, ConfigurableTaskMetadata, DataT, TaskConfigT
 from data_designer.engine.models.facade import ModelFacade
 
@@ -83,17 +80,6 @@ class WithModelGeneration:
     @functools.cached_property
     def inference_parameters(self) -> BaseInferenceParameters:
         return self.model_config.inference_parameters
-
-    @functools.cached_property
-    def prompt_renderer(self) -> RecordBasedPromptRenderer:
-        return RecordBasedPromptRenderer(
-            response_recipe=self.response_recipe,
-            error_message_context={
-                "column_name": self.config.name,
-                "column_type": self.config.column_type,
-                "model_alias": self.config.model_alias,
-            },
-        )
 
     def log_pre_generation(self) -> None:
         emoji = COLUMN_TYPE_EMOJI_MAP[self.config.column_type]

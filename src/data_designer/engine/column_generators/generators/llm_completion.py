@@ -19,6 +19,7 @@ from data_designer.engine.column_generators.generators.base import (
 )
 from data_designer.engine.column_generators.utils.prompt_renderer import (
     PromptType,
+    RecordBasedPromptRenderer,
     create_response_recipe,
 )
 from data_designer.engine.models.recipes.base import ResponseRecipe
@@ -44,6 +45,17 @@ class WithCompletionGeneration(WithModelGeneration):
     @property
     def max_conversation_restarts(self) -> int:
         return DEFAULT_MAX_CONVERSATION_RESTARTS
+
+    @functools.cached_property
+    def prompt_renderer(self) -> RecordBasedPromptRenderer:
+        return RecordBasedPromptRenderer(
+            response_recipe=self.response_recipe,
+            error_message_context={
+                "column_name": self.config.name,
+                "column_type": self.config.column_type,
+                "model_alias": self.config.model_alias,
+            },
+        )
 
     def generate(self, data: dict) -> dict:
         deserialized_record = deserialize_json_values(data)
