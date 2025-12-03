@@ -12,8 +12,11 @@ import yaml
 from data_designer.config.errors import InvalidConfigError
 from data_designer.config.models import (
     CompletionInferenceParameters,
+    EmbeddingInferenceParameters,
+    GenerationType,
     ImageContext,
     ImageFormat,
+    ImageGenerationInferenceParameters,
     ManualDistribution,
     ManualDistributionParams,
     ModalityDataType,
@@ -254,6 +257,48 @@ def test_load_model_configs():
             load_model_configs(tmp_file.name)
 
 
-def test_model_config_default_construction():
+def test_model_config_construction():
+    # test default construction
     model_config = ModelConfig(alias="test", model="test")
     assert model_config.inference_parameters == CompletionInferenceParameters()
+    assert model_config.generation_type == GenerationType.CHAT_COMPLETION
+
+    # test construction with completion inference parameters
+    completion_params = CompletionInferenceParameters(temperature=0.5, top_p=0.5, max_tokens=100)
+    model_config = ModelConfig(alias="test", model="test", inference_parameters=completion_params)
+    assert model_config.inference_parameters == completion_params
+    assert model_config.generation_type == GenerationType.CHAT_COMPLETION
+
+    # test construction with embedding inference parameters
+    embedding_params = EmbeddingInferenceParameters(dimensions=100)
+    model_config = ModelConfig(
+        alias="test", model="test", generation_type=GenerationType.EMBEDDING, inference_parameters=embedding_params
+    )
+    assert model_config.inference_parameters == embedding_params
+    assert model_config.generation_type == GenerationType.EMBEDDING
+
+    # test construction with image generation inference parameters
+    image_generation_params = ImageGenerationInferenceParameters(size="1024x1024", quality="standard")
+    model_config = ModelConfig(
+        alias="test",
+        model="test",
+        generation_type=GenerationType.IMAGE_GENERATION,
+        inference_parameters=image_generation_params,
+    )
+    assert model_config.inference_parameters == image_generation_params
+    assert model_config.generation_type == GenerationType.IMAGE_GENERATION
+
+
+def test_model_config_invalid_generation_type():
+    with pytest.raises(ValidationError, match="Input should be"):
+        ModelConfig(alias="test", model="test", generation_type="invalid_generation_type")
+    with pytest.raises(
+        ValidationError,
+        match="Inference parameters must be an instance of 'EmbeddingInferenceParameters' when generation_type is 'embedding'",
+    ):
+        ModelConfig(
+            alias="test",
+            model="test",
+            generation_type=GenerationType.EMBEDDING,
+            inference_parameters=CompletionInferenceParameters(),
+        )

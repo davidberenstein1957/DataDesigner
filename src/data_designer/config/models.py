@@ -271,6 +271,7 @@ class ModelConfig(ConfigBase):
     alias: str
     model: str
     inference_parameters: InferenceParametersT = Field(default_factory=CompletionInferenceParameters)
+    generation_type: GenerationType = Field(default=GenerationType.CHAT_COMPLETION)
     provider: Optional[str] = None
 
     @model_validator(mode="after")
@@ -280,16 +281,20 @@ class ModelConfig(ConfigBase):
             self.inference_parameters = CompletionInferenceParameters(**self.inference_parameters.model_dump())
         return self
 
-    @property
-    def generation_type(self) -> GenerationType:
-        if isinstance(self.inference_parameters, CompletionInferenceParameters):
-            return GenerationType.CHAT_COMPLETION
-        elif isinstance(self.inference_parameters, EmbeddingInferenceParameters):
-            return GenerationType.EMBEDDING
-        elif isinstance(self.inference_parameters, ImageGenerationInferenceParameters):
-            return GenerationType.IMAGE_GENERATION
-        else:
-            raise ValueError(f"Unsupported inference parameters type: {type(self.inference_parameters)}")
+    @model_validator(mode="after")
+    def _validate_generation_type(self) -> Self:
+        generation_type_instance_map = {
+            GenerationType.CHAT_COMPLETION: CompletionInferenceParameters,
+            GenerationType.EMBEDDING: EmbeddingInferenceParameters,
+            GenerationType.IMAGE_GENERATION: ImageGenerationInferenceParameters,
+        }
+        if self.generation_type not in generation_type_instance_map:
+            raise ValueError(f"Invalid generation type: {self.generation_type}")
+        if not isinstance(self.inference_parameters, generation_type_instance_map[self.generation_type]):
+            raise ValueError(
+                f"Inference parameters must be an instance of {generation_type_instance_map[self.generation_type].__name__!r} when generation_type is {self.generation_type!r}"
+            )
+        return self
 
 
 class ModelProvider(ConfigBase):
