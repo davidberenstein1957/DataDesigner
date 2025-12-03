@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-import re
 
 from data_designer.config.column_configs import EmbeddingColumnConfig
 from data_designer.engine.column_generators.generators.base import (
@@ -10,7 +9,7 @@ from data_designer.engine.column_generators.generators.base import (
     GeneratorMetadata,
     WithModelGeneration,
 )
-from data_designer.engine.processing.utils import deserialize_json_values
+from data_designer.engine.processing.utils import deserialize_json_values, parse_list_string
 from data_designer.engine.resources.resource_provider import ResourceType
 
 
@@ -26,10 +25,9 @@ class EmbeddingCellGenerator(WithModelGeneration, ColumnGenerator[EmbeddingColum
 
     def generate(self, data: dict) -> dict:
         deserialized_record = deserialize_json_values(data)
-        input_text = deserialized_record[self.config.target_column]
-        input_chunks = re.split(self.config.chunk_pattern, input_text) if self.config.chunk_pattern else [input_text]
-        input_chunks = [chunk.strip() for chunk in input_chunks if chunk.strip()]
-        embeddings = self.model.generate_text_embeddings(input_texts=input_chunks)
+        input_texts = parse_list_string(deserialized_record[self.config.target_column])
+        embeddings = self.model.generate_text_embeddings(input_texts=input_texts)
+
         data[self.config.name] = {
             "embeddings": embeddings,
             "num_embeddings": len(embeddings),

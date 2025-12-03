@@ -271,7 +271,7 @@ class ModelConfig(ConfigBase):
     alias: str
     model: str
     inference_parameters: InferenceParametersT = Field(default_factory=CompletionInferenceParameters)
-    generation_type: GenerationType = Field(default=GenerationType.CHAT_COMPLETION)
+    generation_type: Optional[GenerationType] = Field(default=GenerationType.CHAT_COMPLETION)
     provider: Optional[str] = None
 
     @model_validator(mode="after")
