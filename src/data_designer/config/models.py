@@ -142,7 +142,7 @@ class BaseInferenceParameters(ConfigBase, ABC):
     extra_body: Optional[dict[str, Any]] = None
 
     @property
-    def generate_kwargs(self) -> dict[str, Union[float, int]]:
+    def generate_kwargs(self) -> dict[str, Any]:
         result = {}
         if self.timeout is not None:
             result["timeout"] = self.timeout
@@ -157,7 +157,7 @@ class CompletionInferenceParameters(BaseInferenceParameters):
     max_tokens: Optional[int] = Field(default=None, ge=1)
 
     @property
-    def generate_kwargs(self) -> dict[str, Union[float, int]]:
+    def generate_kwargs(self) -> dict[str, Any]:
         result = super().generate_kwargs
         if self.temperature is not None:
             result["temperature"] = (
@@ -248,13 +248,11 @@ class ImageGenerationInferenceParameters(BaseInferenceParameters):
     output_format: Optional[ModalityDataType] = ModalityDataType.BASE64
 
     @property
-    def generate_kwargs(self) -> dict[str, Union[float, int]]:
+    def generate_kwargs(self) -> dict[str, Any]:
         result = super().generate_kwargs
         result["size"] = self.size
         result["quality"] = self.quality
-        result["response_format"] = (
-            self.output_format.value if self.output_format == ModalityDataType.URL else "b64_json"
-        )
+        result["response_format"] = "b64_json" if self.output_format == ModalityDataType.BASE64 else self.output_format
         return result
 
 
