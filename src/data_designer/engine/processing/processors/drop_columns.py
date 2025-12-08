@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from pathlib import Path
 
 import pandas as pd
 

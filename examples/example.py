@@ -1,11 +1,9 @@
-import json
-
 from data_designer.essentials import (
+    AncillaryDatasetProcessorConfig,
     CategorySamplerParams,
     DataDesigner,
     DataDesignerConfigBuilder,
     LLMTextColumnConfig,
-    AncillaryDatasetProcessorConfig,
     PersonSamplerParams,
     SamplerColumnConfig,
     Score,
@@ -197,4 +195,5 @@ results = dd.create(config_builder, num_records=20)
 path_to_processor_artifacts = results.get_path_to_processor_artifacts("jsonl_output")
 
 import pandas as pd
+
 pd.read_parquet(path_to_processor_artifacts).to_json("./output.jsonl", orient="records", lines=True)

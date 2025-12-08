@@ -50,6 +50,7 @@ class DropColumnsProcessorConfig(ProcessorConfig):
 
 class AncillaryDatasetProcessorConfig(ProcessorConfig):
     template: dict[str, Any] = Field(
-        ..., description="Jinja2 template to use for each column of the ancillary dataset. Keys are the column names, values are the Jinja2 templates."
+        ...,
+        description="Jinja2 template to use for each column of the ancillary dataset. Keys are the column names, values are the Jinja2 templates.",
     )
     processor_type: Literal[ProcessorType.ANCILLARY_DATASET] = ProcessorType.ANCILLARY_DATASET

@@ -17,8 +17,8 @@ from data_designer.engine.processing.processors.ancillary_dataset import Ancilla
 def stub_processor_config() -> AncillaryDatasetProcessorConfig:
     return AncillaryDatasetProcessorConfig(
         build_stage=BuildStage.POST_BATCH,
-        template={'text': '{{ col1 }}', 'value': '{{ col2 }}'},
-        name="test_output_format",
+        template={"text": "{{ col1 }}", "value": "{{ col2 }}"},
+        name="test_ancillary_dataset",
     )
 
 
@@ -50,8 +50,8 @@ def stub_simple_dataframe() -> pd.DataFrame:
 def test_metadata() -> None:
     metadata = AncillaryDatasetProcessor.metadata()
 
-    assert metadata.name == "output_format"
-    assert metadata.description == "Format the dataset using a Jinja2 template."
+    assert metadata.name == "ancillary_dataset"
+    assert metadata.description == "Generate an ancillary dataset using a Jinja2 template."
     assert metadata.required_resources is None
 
 
@@ -86,7 +86,7 @@ def test_process_writes_formatted_output_to_parquet(
 
     assert call_args.kwargs["batch_number"] == 0
     assert call_args.kwargs["batch_stage"] == BatchStage.PROCESSORS_OUTPUTS
-    assert call_args.kwargs["subfolder"] == "test_output_format"
+    assert call_args.kwargs["subfolder"] == "test_ancillary_dataset"
 
     # Verify the formatted dataframe has the correct structure
     assert written_dataframe is not None
