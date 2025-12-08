@@ -8,7 +8,6 @@ from typing_extensions import TypeAlias
 from data_designer.config.column_configs import (
     EmbeddingColumnConfig,
     ExpressionColumnConfig,
-    ImageGenerationColumnConfig,
     LLMCodeColumnConfig,
     LLMJudgeColumnConfig,
     LLMStructuredColumnConfig,
@@ -38,7 +37,6 @@ ColumnConfigT: TypeAlias = Union[
     SeedDatasetColumnConfig,
     ValidationColumnConfig,
     EmbeddingColumnConfig,
-    ImageGenerationColumnConfig,
 ]
 ColumnConfigT = plugin_manager.inject_into_column_config_type_union(ColumnConfigT)
 
@@ -59,7 +57,6 @@ COLUMN_TYPE_EMOJI_MAP = {
     DataDesignerColumnType.SAMPLER: "🎲",
     DataDesignerColumnType.VALIDATION: "🔍",
     DataDesignerColumnType.EMBEDDING: "🧬",
-    DataDesignerColumnType.IMAGE_GENERATION: "🖼️",
 }
 COLUMN_TYPE_EMOJI_MAP.update(
     {DataDesignerColumnType(p.name): p.emoji for p in plugin_manager.get_column_generator_plugins()}
@@ -77,7 +74,6 @@ def column_type_used_in_execution_dag(column_type: Union[str, DataDesignerColumn
         DataDesignerColumnType.LLM_TEXT,
         DataDesignerColumnType.VALIDATION,
         DataDesignerColumnType.EMBEDDING,
-        DataDesignerColumnType.IMAGE_GENERATION,
     }
     dag_column_types.update(plugin_manager.get_plugin_column_types(DataDesignerColumnType))
     return column_type in dag_column_types
@@ -92,7 +88,6 @@ def column_type_is_llm_generated(column_type: Union[str, DataDesignerColumnType]
         DataDesignerColumnType.LLM_STRUCTURED,
         DataDesignerColumnType.LLM_JUDGE,
         DataDesignerColumnType.EMBEDDING,
-        DataDesignerColumnType.IMAGE_GENERATION,
     }
     llm_generated_column_types.update(
         plugin_manager.get_plugin_column_types(
@@ -133,8 +128,6 @@ def get_column_config_from_kwargs(name: str, column_type: DataDesignerColumnType
         return SeedDatasetColumnConfig(name=name, **kwargs)
     if column_type == DataDesignerColumnType.EMBEDDING:
         return EmbeddingColumnConfig(name=name, **kwargs)
-    if column_type == DataDesignerColumnType.IMAGE_GENERATION:
-        return ImageGenerationColumnConfig(name=name, **kwargs)
     if plugin := plugin_manager.get_column_generator_plugin_if_exists(column_type.value):
         return plugin.config_cls(name=name, **kwargs)
     raise InvalidColumnTypeError(f"🛑 {column_type} is not a valid column type.")  # pragma: no cover
@@ -150,7 +143,6 @@ def get_column_display_order() -> list[DataDesignerColumnType]:
         DataDesignerColumnType.LLM_STRUCTURED,
         DataDesignerColumnType.LLM_JUDGE,
         DataDesignerColumnType.EMBEDDING,
-        DataDesignerColumnType.IMAGE_GENERATION,
         DataDesignerColumnType.VALIDATION,
         DataDesignerColumnType.EXPRESSION,
     ]

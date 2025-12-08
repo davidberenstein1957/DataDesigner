@@ -97,12 +97,6 @@ class ModelRegistry:
                         skip_usage_tracking=True,
                         purpose="running health checks",
                     )
-                elif model.model_generation_type == GenerationType.IMAGE_GENERATION:
-                    model.generate_image(
-                        prompt="Generate a simple pixel",
-                        skip_usage_tracking=True,
-                        purpose="running health checks",
-                    )
                 else:
                     raise ValueError(f"Unsupported generation type: {model.model_generation_type}")
                 logger.info("  |-- ✅ Passed!")

@@ -319,6 +319,13 @@ class InferenceParameters(CompletionInferenceParameters):
 
 
 class EmbeddingInferenceParameters(BaseInferenceParameters):
+    """Configuration for embedding generation parameters.
+
+    Attributes:
+        encoding_format: Format of the embedding encoding ("float" or "base64").
+        dimensions: Number of dimensions for the embedding.
+    """
+
     encoding_format: Optional[Literal["float", "base64"]] = None
     dimensions: Optional[int] = None
 
@@ -332,29 +339,14 @@ class EmbeddingInferenceParameters(BaseInferenceParameters):
         return result
 
 
-class ImageGenerationInferenceParameters(BaseInferenceParameters):
-    quality: str
-    size: str
-    output_format: Optional[ModalityDataType] = ModalityDataType.BASE64
-
-    @property
-    def generate_kwargs(self) -> dict[str, Any]:
-        result = super().generate_kwargs
-        result["size"] = self.size
-        result["quality"] = self.quality
-        result["response_format"] = "b64_json" if self.output_format == ModalityDataType.BASE64 else self.output_format
-        return result
-
-
 InferenceParametersT: TypeAlias = Union[
-    InferenceParameters, CompletionInferenceParameters, EmbeddingInferenceParameters, ImageGenerationInferenceParameters
+    InferenceParameters, CompletionInferenceParameters, EmbeddingInferenceParameters
 ]
 
 
 class GenerationType(str, Enum):
     CHAT_COMPLETION = "chat-completion"
     EMBEDDING = "embedding"
-    IMAGE_GENERATION = "image-generation"
 
 
 class ModelConfig(ConfigBase):
@@ -385,7 +377,6 @@ class ModelConfig(ConfigBase):
         generation_type_instance_map = {
             GenerationType.CHAT_COMPLETION: CompletionInferenceParameters,
             GenerationType.EMBEDDING: EmbeddingInferenceParameters,
-            GenerationType.IMAGE_GENERATION: ImageGenerationInferenceParameters,
         }
         if self.generation_type not in generation_type_instance_map:
             raise ValueError(f"Invalid generation type: {self.generation_type}")
