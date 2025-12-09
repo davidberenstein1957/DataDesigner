@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Generic, List, Literal, Optional, TypeVar, Union
 
 import numpy as np
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import Self, TypeAlias
 
 from data_designer.config.base import ConfigBase
@@ -340,7 +340,7 @@ class EmbeddingInferenceParameters(BaseInferenceParameters):
 
 
 InferenceParametersT: TypeAlias = Union[
-    InferenceParameters, ChatCompletionInferenceParameters, EmbeddingInferenceParameters
+    ChatCompletionInferenceParameters, EmbeddingInferenceParameters, InferenceParameters
 ]
 
 
@@ -365,12 +365,17 @@ class ModelConfig(ConfigBase):
     generation_type: Optional[GenerationType] = Field(default=GenerationType.CHAT_COMPLETION)
     provider: Optional[str] = None
 
-    @model_validator(mode="after")
-    def _normalize_deprecated_inference_parameters(self) -> Self:
-        """Normalize deprecated InferenceParameters to ChatCompletionInferenceParameters."""
-        if isinstance(self.inference_parameters, InferenceParameters):
-            self.inference_parameters = ChatCompletionInferenceParameters(**self.inference_parameters.model_dump())
-        return self
+    @field_validator("inference_parameters", mode="before")
+    @classmethod
+    def _convert_inference_parameters(cls, value: Any) -> Any:
+        """Convert raw dict to appropriate inference parameters type without triggering deprecation warning."""
+        if isinstance(value, dict):
+            # Check if it has embedding-specific fields
+            if "encoding_format" in value or "dimensions" in value:
+                return EmbeddingInferenceParameters(**value)
+            # Otherwise use ChatCompletionInferenceParameters
+            return ChatCompletionInferenceParameters(**value)
+        return value
 
     @model_validator(mode="after")
     def _validate_generation_type(self) -> Self:
