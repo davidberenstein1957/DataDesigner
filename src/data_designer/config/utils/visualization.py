@@ -254,11 +254,12 @@ def display_sample_record(
             render_list.append(pad_console_element(table, (1, 0, 1, 0)))
 
     if processor_data_to_display and len(processor_data_to_display) > 0:
-        table = Table(title="Processor Artifacts", **table_kws)
-        table.add_column("Name")
-        table.add_column("Value")
-        for name, value in processor_data_to_display.items():
-            table.add_row(name, convert_to_row_element(value))
+        for processor_name, processor_data in processor_data_to_display.items():
+            table = Table(title=f"Processor Outputs: {processor_name}", **table_kws)
+            table.add_column("Name")
+            table.add_column("Value")
+            for col, value in processor_data.items():
+                table.add_row(col, convert_to_row_element(value))
         render_list.append(pad_console_element(table, (1, 0, 1, 0)))
 
     if record_index is not None:

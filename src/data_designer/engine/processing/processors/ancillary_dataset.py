@@ -32,10 +32,10 @@ class AncillaryDatasetProcessor(WithJinja2UserTemplateRendering, Processor[Ancil
     def process(self, data: pd.DataFrame, *, current_batch_number: int | None = None) -> pd.DataFrame:
         self.prepare_jinja2_template_renderer(self.template_as_str, data.columns.to_list())
         formatted_records = [
-            self.render_template(deserialize_json_values(record)).replace("\n", "\\n")
+            json.loads(self.render_template(deserialize_json_values(record)).replace("\n", "\\n"))
             for record in data.to_dict(orient="records")
         ]
-        formatted_data = pd.DataFrame(formatted_records, columns=["formatted_output"])
+        formatted_data = pd.DataFrame(formatted_records)
         if current_batch_number is not None:
             self.artifact_storage.write_batch_to_parquet_file(
                 batch_number=current_batch_number,
@@ -44,7 +44,11 @@ class AncillaryDatasetProcessor(WithJinja2UserTemplateRendering, Processor[Ancil
                 subfolder=self.config.name,
             )
         else:
-            # Just preview the first record for now
-            self.artifact_storage.processor_artifact_preview[self.config.name] = formatted_records[0]
+            self.artifact_storage.write_parquet_file(
+                parquet_file_name=f"{self.config.name}.parquet",
+                dataframe=formatted_data,
+                batch_stage=BatchStage.PROCESSORS_OUTPUTS,
+                subfolder="",
+            )
 
         return data
