@@ -233,7 +233,7 @@ class BaseInferenceParameters(ConfigBase, ABC):
         return result
 
 
-class CompletionInferenceParameters(BaseInferenceParameters):
+class ChatCompletionInferenceParameters(BaseInferenceParameters):
     """Configuration for LLM inference parameters.
 
     Attributes:
@@ -304,16 +304,16 @@ class CompletionInferenceParameters(BaseInferenceParameters):
 
 
 # Maintain backwards compatibility with a deprecation warning
-class InferenceParameters(CompletionInferenceParameters):
+class InferenceParameters(ChatCompletionInferenceParameters):
     """
-    Deprecated: Use CompletionInferenceParameters instead.
+    Deprecated: Use ChatCompletionInferenceParameters instead.
     This alias will be removed in a future version.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         logger.warning(
             "InferenceParameters is deprecated and will be removed in a future version. "
-            "Use CompletionInferenceParameters instead."
+            "Use ChatCompletionInferenceParameters instead."
         )
         super().__init__(*args, **kwargs)
 
@@ -340,7 +340,7 @@ class EmbeddingInferenceParameters(BaseInferenceParameters):
 
 
 InferenceParametersT: TypeAlias = Union[
-    InferenceParameters, CompletionInferenceParameters, EmbeddingInferenceParameters
+    InferenceParameters, ChatCompletionInferenceParameters, EmbeddingInferenceParameters
 ]
 
 
@@ -361,21 +361,21 @@ class ModelConfig(ConfigBase):
 
     alias: str
     model: str
-    inference_parameters: InferenceParametersT = Field(default_factory=CompletionInferenceParameters)
+    inference_parameters: InferenceParametersT = Field(default_factory=ChatCompletionInferenceParameters)
     generation_type: Optional[GenerationType] = Field(default=GenerationType.CHAT_COMPLETION)
     provider: Optional[str] = None
 
     @model_validator(mode="after")
     def _normalize_deprecated_inference_parameters(self) -> Self:
-        """Normalize deprecated InferenceParameters to CompletionInferenceParameters."""
+        """Normalize deprecated InferenceParameters to ChatCompletionInferenceParameters."""
         if isinstance(self.inference_parameters, InferenceParameters):
-            self.inference_parameters = CompletionInferenceParameters(**self.inference_parameters.model_dump())
+            self.inference_parameters = ChatCompletionInferenceParameters(**self.inference_parameters.model_dump())
         return self
 
     @model_validator(mode="after")
     def _validate_generation_type(self) -> Self:
         generation_type_instance_map = {
-            GenerationType.CHAT_COMPLETION: CompletionInferenceParameters,
+            GenerationType.CHAT_COMPLETION: ChatCompletionInferenceParameters,
             GenerationType.EMBEDDING: EmbeddingInferenceParameters,
         }
         if self.generation_type not in generation_type_instance_map:

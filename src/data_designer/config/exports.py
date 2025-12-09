@@ -20,7 +20,7 @@ from data_designer.config.data_designer_config import DataDesignerConfig
 from data_designer.config.dataset_builders import BuildStage
 from data_designer.config.datastore import DatastoreSettings
 from data_designer.config.models import (
-    CompletionInferenceParameters,
+    ChatCompletionInferenceParameters,
     EmbeddingInferenceParameters,
     GenerationType,
     ImageContext,
@@ -80,7 +80,7 @@ def get_config_exports() -> list[str]:
         CodeLang.__name__,
         CodeValidatorParams.__name__,
         ColumnInequalityConstraint.__name__,
-        CompletionInferenceParameters.__name__,
+        ChatCompletionInferenceParameters.__name__,
         DataDesignerColumnType.__name__,
         DataDesignerConfig.__name__,
         DataDesignerConfigBuilder.__name__,

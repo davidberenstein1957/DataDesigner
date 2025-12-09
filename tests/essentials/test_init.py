@@ -14,10 +14,10 @@ from data_designer.essentials import (
     BernoulliSamplerParams,
     BinomialSamplerParams,
     CategorySamplerParams,
+    ChatCompletionInferenceParameters,
     CodeLang,
     CodeValidatorParams,
     ColumnInequalityConstraint,
-    CompletionInferenceParameters,
     DataDesignerColumnType,
     DataDesignerConfig,
     DataDesignerConfigBuilder,
@@ -112,7 +112,7 @@ def test_model_config_imports():
     assert ImageContext is not None
     assert ImageFormat is not None
     assert InferenceParameters is not None
-    assert CompletionInferenceParameters is not None
+    assert ChatCompletionInferenceParameters is not None
     assert EmbeddingInferenceParameters is not None
     assert GenerationType is not None
     assert ManualDistribution is not None
@@ -272,7 +272,7 @@ def test_all_contains_model_configs():
     assert "ImageContext" in __all__
     assert "ImageFormat" in __all__
     assert "InferenceParameters" in __all__
-    assert "CompletionInferenceParameters" in __all__
+    assert "ChatCompletionInferenceParameters" in __all__
     assert "EmbeddingInferenceParameters" in __all__
     assert "GenerationType" in __all__
     assert "ManualDistribution" in __all__
