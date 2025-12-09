@@ -275,7 +275,7 @@ def validate_drop_columns_processor(
     columns: list[ColumnConfigT],
     processor_configs: list[ProcessorConfig],
 ) -> list[Violation]:
-    all_column_names = set([c.name for c in columns])
+    all_column_names = {c.name for c in columns}
     for processor_config in processor_configs:
         if processor_config.processor_type == ProcessorType.DROP_COLUMNS:
             invalid_columns = set(processor_config.column_names) - all_column_names
@@ -298,12 +298,12 @@ def validate_ancillary_dataset_processor(
 ) -> list[Violation]:
     violations = []
 
-    column_names = {c.name for c in columns}
+    all_column_names = {c.name for c in columns}
     for processor_config in processor_configs:
         if processor_config.processor_type == ProcessorType.ANCILLARY_DATASET:
             for col, template in processor_config.template.items():
                 template_keywords = get_prompt_template_keywords(template)
-                invalid_keywords = set(template_keywords) - column_names
+                invalid_keywords = set(template_keywords) - all_column_names
                 if len(invalid_keywords) > 0:
                     invalid_keywords = ", ".join([f"'{k}'" for k in invalid_keywords])
                     message = f"Ancillary dataset processor attempts to reference columns {invalid_keywords} in the template for '{col}', but the columns are not defined in the dataset."
@@ -315,7 +315,8 @@ def validate_ancillary_dataset_processor(
                             level=ViolationLevel.ERROR,
                         )
                     )
-        return violations
+
+    return violations
 
 
 def validate_expression_references(
