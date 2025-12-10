@@ -286,11 +286,17 @@ def test_validate_ancillary_dataset_processor():
     assert len(violations) == 2
     assert violations[0].type == ViolationType.INVALID_REFERENCE
     assert violations[0].column is None
-    assert violations[0].message == "Ancillary dataset processor attempts to reference columns 'invalid_reference' in the template for 'text', but the columns are not defined in the dataset."
+    assert (
+        violations[0].message
+        == "Ancillary dataset processor attempts to reference columns 'invalid_reference' in the template for 'text', but the columns are not defined in the dataset."
+    )
     assert violations[0].level == ViolationLevel.ERROR
     assert violations[1].type == ViolationType.INVALID_TEMPLATE
     assert violations[1].column is None
-    assert violations[1].message == "Ancillary dataset processor ancillary_dataset_processor_invalid_template template is not a valid JSON object."
+    assert (
+        violations[1].message
+        == "Ancillary dataset processor ancillary_dataset_processor_invalid_template template is not a valid JSON object."
+    )
     assert violations[1].level == ViolationLevel.ERROR
 
 
