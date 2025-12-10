@@ -14,7 +14,7 @@ The `ModelConfig` class has the following fields:
 |-------|------|----------|-------------|
 | `alias` | `str` | Yes | Unique identifier for this model configuration (e.g., `"my-text-model"`, `"reasoning-model"`) |
 | `model` | `str` | Yes | Model identifier as recognized by the provider (e.g., `"nvidia/nvidia-nemotron-nano-9b-v2"`, `"gpt-4"`) |
-| `inference_parameters` | `ChatCompletionInferenceParams` or `EmbeddingInferenceParams` | No | Controls model behavior during generation. Use `ChatCompletionInferenceParams` for text/code/structured generation or `EmbeddingInferenceParams` for embeddings. Defaults to `ChatCompletionInferenceParams()` if not provided. See [Inference Parameters](inference_parameters.md) for details. |
+| `inference_parameters` | `InferenceParamsT` | No | Controls model behavior during generation. Use `ChatCompletionInferenceParams` for text/code/structured generation or `EmbeddingInferenceParams` for embeddings. Defaults to `ChatCompletionInferenceParams()` if not provided. See [Inference Parameters](inference_parameters.md) for details. |
 | `generation_type` | `GenerationType` | No | Type of generation: `"chat-completion"` for text/code/structured generation or `"embedding"` for embeddings. Defaults to `"chat-completion"`. Must match the `inference_parameters` type. |
 | `provider` | `str` | No | Reference to the name of the Provider to use (e.g., `"nvidia"`, `"openai"`). If not specified, one set as the default provider, which may resolve to the first provider if there are more than one |
 
