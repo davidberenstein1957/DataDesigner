@@ -23,6 +23,14 @@ nav:
       - Structured Outputs and Jinja Expressions: notebooks/2-structured-outputs-and-jinja-expressions.ipynb
       - Seeding with an External Dataset: notebooks/3-seeding-with-a-dataset.ipynb
       - Providing Images as Context: notebooks/4-providing-images-as-context.ipynb
+  - Recipes:
+      - Recipe Cards: recipes/cards.md
+      - Code Generation:
+          - Text to Python: recipes/code_generation/text_to_python.md
+          - Text to SQL: recipes/code_generation/text_to_sql.md
+      - QA and Chat:
+          - Product Info QA: recipes/qa_and_chat/product_info_qa.md
+          - Multi-Turn Chat: recipes/qa_and_chat/multi_turn_chat.md
   - Code Reference:
       - models: code_reference/models.md
       - column_configs: code_reference/column_configs.md
@@ -83,6 +91,8 @@ plugins:
         include_requirejs: true
         ignore_h1_titles: True
         include_source: True
+        ignore:
+          - "assets/recipes/**/*.py"
   - mkdocstrings:
       handlers:
           python:
@@ -106,13 +116,20 @@ extra_javascript:
   - js/toc-toggle.js
 
 markdown_extensions:
-  - pymdownx.highlight:
-        pygments_lang_class: true
-        use_pygments: true
   - tables
   - pymdownx.superfences
-  - pymdownx.tabbed:
-        alternate_style: true
   - attr_list
   - md_in_html
   - admonition
+  - pymdownx.snippets:
+      base_path:
+        - docs/
+        - .
+  - pymdownx.highlight:
+        pygments_lang_class: true
+        use_pygments: true
+  - pymdownx.tabbed:
+        alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
