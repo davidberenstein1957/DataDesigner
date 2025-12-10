@@ -414,3 +414,37 @@ def test_numeric_field_value_setter_converts_empty_string_to_none() -> None:
     field.value = ""
 
     assert field.value is None
+
+
+@patch("data_designer.cli.ui.prompt_text_input")
+def test_text_field_accepts_clear_keyword(mock_prompt: Mock) -> None:
+    """Test TextField accepts 'clear' keyword to remove value."""
+    mock_prompt.return_value = "clear"
+    field = TextField(name="optional", prompt="Enter value", default="test", required=False)
+
+    result = field.prompt_user()
+
+    assert result == ""
+
+
+@patch("data_designer.cli.ui.prompt_text_input")
+def test_text_field_shows_clear_instruction_for_optional_with_default(mock_prompt: Mock) -> None:
+    """Test TextField shows clear instruction for optional fields with default values."""
+    mock_prompt.return_value = ""
+    field = TextField(name="optional", prompt="Enter value", default="test", required=False)
+
+    field.prompt_user()
+
+    # Check that prompt includes 'clear' instruction
+    call_args = mock_prompt.call_args
+    prompt_arg = call_args[0][0]
+    assert "clear" in prompt_arg.lower()
+
+
+def test_text_field_value_setter_converts_empty_string_to_none() -> None:
+    """Test TextField value setter converts empty string to None for optional fields."""
+    field = TextField(name="optional", prompt="Enter value", required=False)
+
+    field.value = ""
+
+    assert field.value is None

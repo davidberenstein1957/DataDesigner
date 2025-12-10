@@ -433,5 +433,57 @@ def test_build_inference_params_embedding_with_partial_values() -> None:
 
     result = builder.build_inference_params(GenerationType.EMBEDDING, params_data)
 
-    # Only provided values should be included
+    # encoding_format always included, dimensions omitted if not provided
     assert result == {"encoding_format": "float"}
+
+
+def test_build_inference_params_embedding_all_cleared() -> None:
+    """Test building embedding inference params when both are cleared."""
+    builder = ModelFormBuilder()
+    params_data = {"encoding_format": None, "dimensions": None}
+
+    result = builder.build_inference_params(GenerationType.EMBEDDING, params_data)
+
+    # Empty dict; Pydantic will use defaults (encoding_format="float", dimensions=None)
+    assert result == {}
+
+
+def test_validate_encoding_format_accepts_valid_values() -> None:
+    """Test encoding format validation accepts 'float' and 'base64'."""
+    builder = ModelFormBuilder()
+
+    is_valid, error = builder.validate_encoding_format("float")
+    assert is_valid is True
+    assert error is None
+
+    is_valid, error = builder.validate_encoding_format("base64")
+    assert is_valid is True
+    assert error is None
+
+
+def test_validate_encoding_format_rejects_invalid_values() -> None:
+    """Test encoding format validation rejects invalid values."""
+    builder = ModelFormBuilder()
+
+    is_valid, error = builder.validate_encoding_format("invalid")
+    assert is_valid is False
+    assert "float" in error and "base64" in error
+
+
+def test_validate_encoding_format_accepts_empty_string() -> None:
+    """Test encoding format validation accepts empty string (optional field)."""
+    builder = ModelFormBuilder()
+
+    is_valid, error = builder.validate_encoding_format("")
+    assert is_valid is True
+    assert error is None
+
+
+def test_validate_encoding_format_accepts_clear_keywords() -> None:
+    """Test encoding format validation accepts clearing keywords."""
+    builder = ModelFormBuilder()
+
+    for keyword in ("clear", "none", "default", "CLEAR", "None"):
+        is_valid, error = builder.validate_encoding_format(keyword)
+        assert is_valid is True, f"Failed for keyword: {keyword}"
+        assert error is None

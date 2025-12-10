@@ -73,6 +73,22 @@ class TextField(Field[str]):
         self.completions = completions
         self.mask = mask
 
+    @Field.value.setter
+    def value(self, val: str) -> None:
+        """Set and validate the field value. Converts empty strings to None for optional fields."""
+        # Handle empty string for optional fields (clearing the value)
+        if val == "" and not self.required:
+            self._value = None
+            return
+
+        # Standard validation for non-empty values
+        if self.validator:
+            val_str = str(val) if not isinstance(val, str) else val
+            is_valid, error_msg = self.validator(val_str)
+            if not is_valid:
+                raise ValidationError(error_msg or "Invalid value")
+        self._value = val
+
     def prompt_user(self, allow_back: bool = False) -> str | None | Any:
         """Prompt user for text input."""
         from data_designer.cli.ui import BACK, prompt_text_input
@@ -83,7 +99,10 @@ class TextField(Field[str]):
 
         if has_current_value:
             # Show as "current" instead of "default" with dimmed styling
-            prompt_text = f"{self.prompt} <dim>(current value: {self.default})</dim>"
+            if not self.required:
+                prompt_text = f"{self.prompt} <dim>(current value: {self.default}, type 'clear' to remove)</dim>"
+            else:
+                prompt_text = f"{self.prompt} <dim>(current value: {self.default})</dim>"
 
         # Don't pass default to prompt_text_input to avoid duplicate "(default: X)" text
         result = prompt_text_input(
@@ -101,6 +120,10 @@ class TextField(Field[str]):
         if result is None:
             # User cancelled (ESC)
             return None
+
+        # Check for special keywords to clear the value
+        if result and result.lower() in ("clear", "none", "default"):
+            return ""
 
         if not result:
             # Empty input: return current value if exists

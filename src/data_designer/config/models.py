@@ -326,7 +326,7 @@ class EmbeddingInferenceParameters(BaseInferenceParameters):
         dimensions: Number of dimensions for the embedding.
     """
 
-    encoding_format: Optional[Literal["float", "base64"]] = None
+    encoding_format: Literal["float", "base64"] = "float"
     dimensions: Optional[int] = None
 
     @property

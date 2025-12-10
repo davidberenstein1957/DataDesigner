@@ -7,7 +7,12 @@ from data_designer.cli.forms.builder import FormBuilder
 from data_designer.cli.forms.field import NumericField, SelectField, TextField
 from data_designer.cli.forms.form import Form
 from data_designer.cli.ui import confirm_action, print_error, print_text
-from data_designer.config.models import GenerationType, ModelConfig
+from data_designer.config.models import (
+    ChatCompletionInferenceParameters,
+    EmbeddingInferenceParameters,
+    GenerationType,
+    ModelConfig,
+)
 
 
 class ModelFormBuilder(FormBuilder[ModelConfig]):
@@ -29,7 +34,7 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
                 "Model alias (used in your configs)",
                 default=initial_data.get("alias") if initial_data else None,
                 required=True,
-                validator=self._validate_alias,
+                validator=self.validate_alias,
             )
         )
 
@@ -127,12 +132,12 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
         else:  # EMBEDDING
             # Encoding format
             fields.append(
-                SelectField(
+                TextField(
                     "encoding_format",
-                    "Encoding format",
-                    options={"float": "Float", "base64": "Base64"},
+                    "Encoding format <dim>(float or base64)</dim>",
                     default=initial_params.get("encoding_format"),
                     required=False,
+                    validator=self.validate_encoding_format,
                 )
             )
 
@@ -162,10 +167,11 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
             if params_data.get("max_tokens") is not None:
                 inference_params["max_tokens"] = int(params_data["max_tokens"])
 
-        else:
-            if params_data.get("encoding_format") is not None:
+        else:  # EMBEDDING
+            # Only include fields with actual values; Pydantic will use defaults for missing fields
+            if params_data.get("encoding_format"):
                 inference_params["encoding_format"] = params_data["encoding_format"]
-            if params_data.get("dimensions") is not None:
+            if params_data.get("dimensions"):
                 inference_params["dimensions"] = int(params_data["dimensions"])
 
         return inference_params
@@ -233,9 +239,13 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
         generation_type = form_data.get("generation_type", GenerationType.CHAT_COMPLETION)
 
         # Get inference parameters and add max_parallel_requests if not present
-        inference_params = form_data.get("inference_parameters", {})
-        if "max_parallel_requests" not in inference_params:
-            inference_params["max_parallel_requests"] = 4
+        inference_params_dict = form_data.get("inference_parameters", {})
+
+        # Create the appropriate inference parameters type based on generation_type
+        if generation_type == GenerationType.EMBEDDING:
+            inference_params = EmbeddingInferenceParameters(**inference_params_dict)
+        else:
+            inference_params = ChatCompletionInferenceParameters(**inference_params_dict)
 
         return ModelConfig(
             alias=form_data["alias"],
@@ -245,10 +255,20 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
             inference_parameters=inference_params,
         )
 
-    def _validate_alias(self, alias: str) -> tuple[bool, str | None]:
+    def validate_alias(self, alias: str) -> tuple[bool, str | None]:
         """Validate model alias."""
         if not alias:
             return False, "Model alias is required"
         if alias in self.existing_aliases:
             return False, f"Model alias '{alias}' already exists"
+        return True, None
+
+    def validate_encoding_format(self, value: str) -> tuple[bool, str | None]:
+        """Validate encoding format for embedding models."""
+        if not value:
+            return True, None  # Optional field
+        if value.lower() in ("clear", "none", "default"):
+            return True, None  # Allow clearing keywords
+        if value not in ("float", "base64"):
+            return False, "Must be either 'float' or 'base64'"
         return True, None
