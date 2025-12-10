@@ -1,13 +1,13 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import textwrap
 from typing import Any
 
 from data_designer.cli.forms.builder import FormBuilder
-from data_designer.cli.forms.field import NumericField, SelectField, TextField
+from data_designer.cli.forms.field import DictField, SelectField, TextField
 from data_designer.cli.forms.form import Form
-from data_designer.config.models import ModelConfig
-from data_designer.config.utils.constants import MAX_TEMPERATURE, MAX_TOP_P, MIN_TEMPERATURE, MIN_TOP_P
+from data_designer.config.models import GenerationType, ModelConfig
 
 
 class ModelFormBuilder(FormBuilder[ModelConfig]):
@@ -61,35 +61,38 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
             # Single provider - will be set automatically
             pass
 
-        # Inference parameters
-        fields.extend(
-            [
-                NumericField(
-                    "temperature",
-                    f"Temperature ({MIN_TEMPERATURE}-{MAX_TEMPERATURE})",
-                    default=initial_data.get("inference_parameters", {}).get("temperature", 0.7)
-                    if initial_data
-                    else 0.7,
-                    min_value=MIN_TEMPERATURE,
-                    max_value=MAX_TEMPERATURE,
-                ),
-                NumericField(
-                    "top_p",
-                    f"Top P ({MIN_TOP_P}-{MAX_TOP_P})",
-                    default=initial_data.get("inference_parameters", {}).get("top_p", 0.9) if initial_data else 0.9,
-                    min_value=MIN_TOP_P,
-                    max_value=MAX_TOP_P,
-                ),
-                NumericField(
-                    "max_tokens",
-                    "Max tokens",
-                    default=initial_data.get("inference_parameters", {}).get("max_tokens", 2048)
-                    if initial_data
-                    else 2048,
-                    min_value=1,
-                    max_value=100000,
-                ),
-            ]
+        # Generation type
+        fields.append(
+            SelectField(
+                "generation_type",
+                "Generation type",
+                options={
+                    GenerationType.CHAT_COMPLETION: "Chat completion",
+                    GenerationType.EMBEDDING: "Embedding",
+                },
+                default=initial_data.get("generation_type", GenerationType.CHAT_COMPLETION)
+                if initial_data
+                else GenerationType.CHAT_COMPLETION,
+            )
+        )
+
+        # Inference parameters as dictionary
+        default_inference_params = initial_data.get("inference_parameters") if initial_data else {}
+
+        inference_params_instructions = textwrap.dedent("""
+        Inference parameters
+        |-- (Enter as JSON)
+        |-- Hit enter to accept model defaults.
+        |-- E.g., {"temperature": 0.7, "top_p": 0.9, "max_tokens": 2048} for chat completion models
+        |-- E.g., {"encoding_format": "float", "dimensions": 1024} for embedding models
+        """)
+        fields.append(
+            DictField(
+                "inference_parameters",
+                inference_params_instructions,
+                default=default_inference_params,
+                required=True,
+            )
         )
 
         return Form(self.title, fields)
@@ -112,14 +115,18 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
         else:
             provider = None
 
+        # Get generation type
+        generation_type = form_data.get("generation_type", GenerationType.CHAT_COMPLETION)
+
+        # Get inference parameters and add max_parallel_requests if not present
+        inference_params = form_data.get("inference_parameters", {})
+        if "max_parallel_requests" not in inference_params:
+            inference_params["max_parallel_requests"] = 4
+
         return ModelConfig(
             alias=form_data["alias"],
             model=form_data["model"],
             provider=provider,
-            inference_parameters={
-                "temperature": form_data["temperature"],
-                "top_p": form_data["top_p"],
-                "max_tokens": int(form_data["max_tokens"]),
-                "max_parallel_requests": 4,
-            },
+            generation_type=generation_type,
+            inference_parameters=inference_params,
         )

@@ -110,9 +110,7 @@ def test_form_has_all_required_fields() -> None:
     # All required fields must be present
     assert form.get_field("alias") is not None
     assert form.get_field("model") is not None
-    assert form.get_field("temperature") is not None
-    assert form.get_field("top_p") is not None
-    assert form.get_field("max_tokens") is not None
+    assert form.get_field("inference_parameters") is not None
 
 
 # Initial data handling tests
@@ -133,9 +131,7 @@ def test_form_uses_initial_data_for_field_defaults() -> None:
 
     assert form.get_field("alias").default == "my-model"
     assert form.get_field("model").default == "gpt-4"
-    assert form.get_field("temperature").default == 0.5
-    assert form.get_field("top_p").default == 0.8
-    assert form.get_field("max_tokens").default == 1024
+    assert form.get_field("inference_parameters").default == initial_data["inference_parameters"]
 
 
 def test_form_uses_standard_defaults_without_initial_data() -> None:
@@ -146,9 +142,8 @@ def test_form_uses_standard_defaults_without_initial_data() -> None:
 
     assert form.get_field("alias").default is None
     assert form.get_field("model").default is None
-    assert form.get_field("temperature").default == 0.7
-    assert form.get_field("top_p").default == 0.9
-    assert form.get_field("max_tokens").default == 2048
+    inference_params_field = form.get_field("inference_parameters")
+    assert inference_params_field.default == {"temperature": 0.7, "top_p": 0.9, "max_tokens": 2048}
 
 
 def test_form_handles_partial_initial_data() -> None:
@@ -164,10 +159,9 @@ def test_form_handles_partial_initial_data() -> None:
     # Should use provided values
     assert form.get_field("alias").default == "my-model"
     assert form.get_field("model").default == "gpt-4"
-    # Should fall back to standard defaults for missing values
-    assert form.get_field("temperature").default == 0.7
-    assert form.get_field("top_p").default == 0.9
-    assert form.get_field("max_tokens").default == 2048
+    # Should fall back to standard defaults for missing inference_parameters
+    inference_params_field = form.get_field("inference_parameters")
+    assert inference_params_field.default == {"temperature": 0.7, "top_p": 0.9, "max_tokens": 2048}
 
 
 def test_form_provider_defaults_to_first_when_multiple_available() -> None:
@@ -199,9 +193,11 @@ def test_build_config_uses_provider_from_form_data() -> None:
         "alias": "my-model",
         "model": "gpt-4",
         "provider": "anthropic",
-        "temperature": 0.7,
-        "top_p": 0.9,
-        "max_tokens": 2048,
+        "inference_parameters": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 2048,
+        },
     }
 
     config = builder.build_config(form_data)
@@ -215,9 +211,11 @@ def test_build_config_infers_single_available_provider() -> None:
     form_data = {
         "alias": "my-model",
         "model": "gpt-4",
-        "temperature": 0.7,
-        "top_p": 0.9,
-        "max_tokens": 2048,
+        "inference_parameters": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 2048,
+        },
     }
 
     config = builder.build_config(form_data)
@@ -231,9 +229,11 @@ def test_build_config_sets_provider_none_when_unavailable() -> None:
     form_data = {
         "alias": "my-model",
         "model": "gpt-4",
-        "temperature": 0.7,
-        "top_p": 0.9,
-        "max_tokens": 2048,
+        "inference_parameters": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 2048,
+        },
     }
 
     config = builder.build_config(form_data)
@@ -247,9 +247,11 @@ def test_build_config_creates_valid_model_config() -> None:
     form_data = {
         "alias": "test-model",
         "model": "gpt-4-turbo",
-        "temperature": 0.5,
-        "top_p": 0.8,
-        "max_tokens": 1024,
+        "inference_parameters": {
+            "temperature": 0.5,
+            "top_p": 0.8,
+            "max_tokens": 1024,
+        },
     }
 
     config = builder.build_config(form_data)
@@ -265,19 +267,20 @@ def test_build_config_creates_valid_model_config() -> None:
 
 
 def test_build_config_converts_max_tokens_to_int() -> None:
-    """Test build_config converts max_tokens from float to int."""
+    """Test build_config handles numeric values in inference parameters."""
     builder = ModelFormBuilder()
     form_data = {
         "alias": "my-model",
         "model": "gpt-4",
-        "temperature": 0.7,
-        "top_p": 0.9,
-        "max_tokens": 2048.0,  # NumericField returns float
+        "inference_parameters": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 2048,
+        },
     }
 
     config = builder.build_config(form_data)
 
-    assert isinstance(config.inference_parameters.max_tokens, int)
     assert config.inference_parameters.max_tokens == 2048
 
 
@@ -289,9 +292,11 @@ def test_build_config_prefers_explicit_provider_over_inference() -> None:
         "alias": "my-model",
         "model": "gpt-4",
         "provider": "custom",  # Explicitly overridden
-        "temperature": 0.7,
-        "top_p": 0.9,
-        "max_tokens": 2048,
+        "inference_parameters": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 2048,
+        },
     }
 
     config = builder.build_config(form_data)
@@ -322,14 +327,17 @@ def test_full_workflow_creates_valid_config() -> None:
 
     # Simulate user accepting defaults (get_values would return these)
     form.set_values(initial_data)
-    # Flatten inference_parameters for form data
+
+    # Form data now includes inference_parameters as a dict
     form_data = {
         "alias": "new-model",
         "model": "claude-3-opus",
         "provider": "anthropic",
-        "temperature": 0.6,
-        "top_p": 0.95,
-        "max_tokens": 4096,
+        "inference_parameters": {
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "max_tokens": 4096,
+        },
     }
 
     # Build config

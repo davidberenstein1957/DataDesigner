@@ -178,3 +178,87 @@ class NumericField(Field[float]):
             return BACK
 
         return float(result) if result else None
+
+
+class DictField(Field[dict]):
+    """Dictionary/JSON input field for structured data.
+
+    Users enter a JSON string (e.g., {"key": "value"}).
+    When set programmatically, accepts dict directly.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        prompt: str,
+        default: dict | None = None,
+        required: bool = True,
+        help_text: str | None = None,
+    ):
+        def json_validator(value: str) -> tuple[bool, str | None]:
+            if not value and not required:
+                return True, None
+            if not value:
+                return False, "Value is required"
+
+            import json
+
+            try:
+                parsed = json.loads(value)
+                if not isinstance(parsed, dict):
+                    return False, "Must be a valid JSON object/dictionary"
+                return True, None
+            except json.JSONDecodeError as e:
+                return False, f"Invalid JSON: {e.msg}"
+
+        super().__init__(name, prompt, default, required, json_validator, help_text)
+
+    @property
+    def value(self) -> dict | None:
+        """Get the current field value."""
+        return self._value
+
+    @value.setter
+    def value(self, val: dict) -> None:
+        """Set field value. Accepts dict directly (already validated from config)."""
+        if val is None:
+            if self.required:
+                raise ValidationError("Value is required")
+            self._value = None
+        elif isinstance(val, dict):
+            self._value = val
+        else:
+            raise ValidationError(f"Expected dict, got {type(val).__name__}")
+
+    def prompt_user(self, allow_back: bool = False) -> dict | None | Any:
+        """Prompt user for dictionary input as JSON."""
+        import json
+
+        from data_designer.cli.ui import BACK, prompt_text_input
+
+        # Format default as compact JSON string
+        default_str = None
+        if self.default is not None:
+            default_str = json.dumps(self.default)
+
+        # Build a cleaner prompt with help text on separate line
+        if self.help_text:
+            full_prompt = f"{self.prompt}\n💡 {self.help_text}"
+        else:
+            full_prompt = self.prompt
+
+        result = prompt_text_input(
+            full_prompt,
+            default=default_str,
+            validator=self.validator,
+            allow_back=allow_back,
+        )
+
+        if result is BACK:
+            return BACK
+
+        if not result:
+            return None
+
+        # Parse the JSON string to dict
+        return json.loads(result)
