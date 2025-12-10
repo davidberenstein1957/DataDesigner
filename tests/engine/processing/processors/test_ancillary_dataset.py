@@ -9,7 +9,7 @@ import pytest
 
 from data_designer.config.dataset_builders import BuildStage
 from data_designer.config.processors import AncillaryDatasetProcessorConfig
-from data_designer.engine.dataset_builders.artifact_storage import ArtifactStorage, BatchStage
+from data_designer.engine.dataset_builders.artifact_storage import BatchStage
 from data_designer.engine.processing.processors.ancillary_dataset import AncillaryDatasetProcessor
 from data_designer.engine.resources.resource_provider import ResourceProvider
 
@@ -24,7 +24,9 @@ def stub_processor_config() -> AncillaryDatasetProcessorConfig:
 
 
 @pytest.fixture
-def stub_processor(stub_processor_config: AncillaryDatasetProcessorConfig, stub_resource_provider: ResourceProvider) -> AncillaryDatasetProcessor:
+def stub_processor(
+    stub_processor_config: AncillaryDatasetProcessorConfig, stub_resource_provider: ResourceProvider
+) -> AncillaryDatasetProcessor:
     stub_resource_provider.artifact_storage = Mock()
     stub_resource_provider.artifact_storage.write_batch_to_parquet_file = Mock()
 
@@ -121,7 +123,9 @@ def test_process_with_json_serialized_values(stub_processor: AncillaryDatasetPro
 
     # Process the dataframe
     stub_processor.process(df_with_json, current_batch_number=0)
-    written_dataframe: pd.DataFrame = stub_processor.artifact_storage.write_batch_to_parquet_file.call_args.kwargs["dataframe"]
+    written_dataframe: pd.DataFrame = stub_processor.artifact_storage.write_batch_to_parquet_file.call_args.kwargs[
+        "dataframe"
+    ]
 
     # Verify the formatted dataframe was written
     assert written_dataframe is not None
