@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from enum import Enum
 from string import Formatter
 from typing import Optional
@@ -37,7 +36,6 @@ class ViolationType(str, Enum):
     INVALID_COLUMN = "invalid_column"
     INVALID_MODEL_CONFIG = "invalid_model_config"
     INVALID_REFERENCE = "invalid_reference"
-    INVALID_TEMPLATE = "invalid_template"
     PROMPT_WITHOUT_REFERENCES = "prompt_without_references"
 
 
@@ -303,20 +301,6 @@ def validate_schema_transform_processor(
     all_column_names = {c.name for c in columns}
     for processor_config in processor_configs:
         if processor_config.processor_type == ProcessorType.SCHEMA_TRANSFORM:
-            try:
-                json.dumps(processor_config.template)
-            except TypeError as e:
-                if "not JSON serializable" in str(e):
-                    violations.append(
-                        Violation(
-                            column=None,
-                            type=ViolationType.INVALID_TEMPLATE,
-                            message=f"Ancillary dataset processor {processor_config.name} template is not a valid JSON object.",
-                            level=ViolationLevel.ERROR,
-                        )
-                    )
-                    continue
-
             for col, template in processor_config.template.items():
                 template_keywords = get_prompt_template_keywords(template)
                 invalid_keywords = set(template_keywords) - all_column_names

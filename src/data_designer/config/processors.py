@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 from abc import ABC
 from enum import Enum
 from typing import Any, Literal
@@ -9,6 +10,7 @@ from pydantic import Field, field_validator
 
 from data_designer.config.base import ConfigBase
 from data_designer.config.dataset_builders import BuildStage
+from data_designer.config.errors import InvalidConfigError
 
 SUPPORTED_STAGES = [BuildStage.POST_BATCH]
 
@@ -72,3 +74,12 @@ class SchemaTransformProcessorConfig(ProcessorConfig):
         """,
     )
     processor_type: Literal[ProcessorType.SCHEMA_TRANSFORM] = ProcessorType.SCHEMA_TRANSFORM
+
+    @field_validator("template")
+    def validate_template(cls, v: dict[str, Any]) -> dict[str, Any]:
+        try:
+            json.dumps(v)
+        except TypeError as e:
+            if "not JSON serializable" in str(e):
+                raise InvalidConfigError("Template must be JSON serializable")
+        return v

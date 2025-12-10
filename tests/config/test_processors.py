@@ -5,6 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from data_designer.config.dataset_builders import BuildStage
+from data_designer.config.errors import InvalidConfigError
 from data_designer.config.processors import (
     DropColumnsProcessorConfig,
     ProcessorConfig,
@@ -79,10 +80,16 @@ def test_schema_transform_processor_config_validation():
     with pytest.raises(ValidationError, match="Field required"):
         SchemaTransformProcessorConfig(name="schema_transform_processor", build_stage=BuildStage.POST_BATCH)
 
+    # Test invalid template raises error
+    with pytest.raises(InvalidConfigError, match="Template must be JSON serializable"):
+        SchemaTransformProcessorConfig(
+            name="schema_transform_processor", build_stage=BuildStage.POST_BATCH, template={"text": {1, 2, 3}}
+        )
 
-def test_output_format_processor_config_serialization():
+
+def test_schema_transform_processor_config_serialization():
     config = SchemaTransformProcessorConfig(
-        name="output_format_processor",
+        name="schema_transform_processor",
         build_stage=BuildStage.POST_BATCH,
         template={"text": "{{ col1 }}"},
     )
