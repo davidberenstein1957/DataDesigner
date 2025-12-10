@@ -17,7 +17,7 @@ import os
 import platform
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, ClassVar
 
@@ -162,7 +162,7 @@ class QueuedEvent:
 
 def _get_iso_timestamp(dt: datetime | None = None) -> str:
     if dt is None:
-        dt = datetime.now(UTC)
+        dt = datetime.now(timezone.utc)
     return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
 
 
@@ -275,7 +275,7 @@ class TelemetryHandler:
         if not isinstance(event, TelemetryEvent):
             # Silently fail as we prioritize not disrupting upstream call sites and telemetry is best effort
             return
-        queued = QueuedEvent(event=event, timestamp=datetime.now(UTC))
+        queued = QueuedEvent(event=event, timestamp=datetime.now(timezone.utc))
         self._events.append(queued)
         if len(self._events) >= self._max_queue_size:
             self._flush_signal.set()
