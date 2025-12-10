@@ -129,6 +129,30 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
                 )
             )
 
+            # Max parallel requests
+            fields.append(
+                NumericField(
+                    "max_parallel_requests",
+                    "Max parallel requests <dim>(default: 4)</dim>",
+                    default=initial_params.get("max_parallel_requests", 4),
+                    min_value=1.0,
+                    required=False,
+                    help_text="Maximum number of parallel API requests",
+                )
+            )
+
+            # Timeout
+            fields.append(
+                NumericField(
+                    "timeout",
+                    "Timeout in seconds <dim>(optional)</dim>",
+                    default=initial_params.get("timeout"),
+                    min_value=1.0,
+                    required=False,
+                    help_text="Timeout for each API request in seconds",
+                )
+            )
+
         else:  # EMBEDDING
             # Encoding format
             fields.append(
@@ -153,6 +177,30 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
                 )
             )
 
+            # Max parallel requests (common field)
+            fields.append(
+                NumericField(
+                    "max_parallel_requests",
+                    "Max parallel requests <dim>(default: 4)</dim>",
+                    default=initial_params.get("max_parallel_requests", 4),
+                    min_value=1.0,
+                    required=False,
+                    help_text="Maximum number of parallel API requests",
+                )
+            )
+
+            # Timeout (common field)
+            fields.append(
+                NumericField(
+                    "timeout",
+                    "Timeout in seconds <dim>(optional)</dim>",
+                    default=initial_params.get("timeout"),
+                    min_value=1.0,
+                    required=False,
+                    help_text="Timeout for each API request in seconds",
+                )
+            )
+
         return Form(f"{self.title} - Inference Parameters", fields)
 
     def build_inference_params(self, generation_type: GenerationType, params_data: dict[str, Any]) -> dict[str, Any]:
@@ -173,6 +221,12 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
                 inference_params["encoding_format"] = params_data["encoding_format"]
             if params_data.get("dimensions"):
                 inference_params["dimensions"] = int(params_data["dimensions"])
+
+        # Common fields for both generation types
+        if params_data.get("max_parallel_requests") is not None:
+            inference_params["max_parallel_requests"] = int(params_data["max_parallel_requests"])
+        if params_data.get("timeout") is not None:
+            inference_params["timeout"] = int(params_data["timeout"])
 
         return inference_params
 
@@ -235,13 +289,14 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
         else:
             provider = None
 
-        # Get generation type
+        # Get generation type (from form data, used to determine which inference params to create)
         generation_type = form_data.get("generation_type", GenerationType.CHAT_COMPLETION)
 
-        # Get inference parameters and add max_parallel_requests if not present
+        # Get inference parameters dict
         inference_params_dict = form_data.get("inference_parameters", {})
 
         # Create the appropriate inference parameters type based on generation_type
+        # The generation_type will be set automatically by the inference params class
         if generation_type == GenerationType.EMBEDDING:
             inference_params = EmbeddingInferenceParams(**inference_params_dict)
         else:
@@ -251,7 +306,6 @@ class ModelFormBuilder(FormBuilder[ModelConfig]):
             alias=form_data["alias"],
             model=form_data["model"],
             provider=provider,
-            generation_type=generation_type,
             inference_parameters=inference_params,
         )
 

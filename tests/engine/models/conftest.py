@@ -8,7 +8,6 @@ import pytest
 from data_designer.config.models import (
     ChatCompletionInferenceParams,
     EmbeddingInferenceParams,
-    GenerationType,
     ModelConfig,
 )
 from data_designer.engine.model_provider import ModelProvider, ModelProviderRegistry
@@ -62,7 +61,6 @@ def stub_model_configs() -> list[ModelConfig]:
             inference_parameters=EmbeddingInferenceParams(
                 dimensions=100,
             ),
-            generation_type=GenerationType.EMBEDDING,
         ),
     ]
 

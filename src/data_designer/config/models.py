@@ -205,15 +205,22 @@ class UniformDistribution(Distribution[UniformDistributionParams]):
 DistributionT: TypeAlias = Union[UniformDistribution, ManualDistribution]
 
 
+class GenerationType(str, Enum):
+    CHAT_COMPLETION = "chat-completion"
+    EMBEDDING = "embedding"
+
+
 class BaseInferenceParams(ConfigBase, ABC):
     """Base configuration for inference parameters.
 
     Attributes:
+        generation_type: Type of generation (chat-completion or embedding). Acts as discriminator.
         max_parallel_requests: Maximum number of parallel requests to the model API.
         timeout: Timeout in seconds for each request.
         extra_body: Additional parameters to pass to the model API.
     """
 
+    generation_type: GenerationType
     max_parallel_requests: int = Field(default=4, ge=1)
     timeout: Optional[int] = Field(default=None, ge=1)
     extra_body: Optional[dict[str, Any]] = None
@@ -237,11 +244,13 @@ class ChatCompletionInferenceParams(BaseInferenceParams):
     """Configuration for LLM inference parameters.
 
     Attributes:
+        generation_type: Type of generation, always "chat-completion" for this class.
         temperature: Sampling temperature (0.0-2.0). Can be a fixed value or a distribution for dynamic sampling.
         top_p: Nucleus sampling probability (0.0-1.0). Can be a fixed value or a distribution for dynamic sampling.
         max_tokens: Maximum number of tokens (includes both input and output tokens).
     """
 
+    generation_type: Literal[GenerationType.CHAT_COMPLETION] = GenerationType.CHAT_COMPLETION
     temperature: Optional[Union[float, DistributionT]] = None
     top_p: Optional[Union[float, DistributionT]] = None
     max_tokens: Optional[int] = Field(default=None, ge=1)
@@ -322,10 +331,12 @@ class EmbeddingInferenceParams(BaseInferenceParams):
     """Configuration for embedding generation parameters.
 
     Attributes:
+        generation_type: Type of generation, always "embedding" for this class.
         encoding_format: Format of the embedding encoding ("float" or "base64").
         dimensions: Number of dimensions for the embedding.
     """
 
+    generation_type: Literal[GenerationType.EMBEDDING] = GenerationType.EMBEDDING
     encoding_format: Literal["float", "base64"] = "float"
     dimensions: Optional[int] = None
 
@@ -342,11 +353,6 @@ class EmbeddingInferenceParams(BaseInferenceParams):
 InferenceParamsT: TypeAlias = Union[ChatCompletionInferenceParams, EmbeddingInferenceParams, InferenceParameters]
 
 
-class GenerationType(str, Enum):
-    CHAT_COMPLETION = "chat-completion"
-    EMBEDDING = "embedding"
-
-
 class ModelConfig(ConfigBase):
     """Configuration for a model used for generation.
 
@@ -354,40 +360,31 @@ class ModelConfig(ConfigBase):
         alias: User-defined alias to reference in column configurations.
         model: Model identifier (e.g., from build.nvidia.com or other providers).
         inference_parameters: Inference parameters for the model (temperature, top_p, max_tokens, etc.).
+            The generation_type is determined by the type of inference_parameters.
         provider: Optional model provider name if using custom providers.
     """
 
     alias: str
     model: str
     inference_parameters: InferenceParamsT = Field(default_factory=ChatCompletionInferenceParams)
-    generation_type: Optional[GenerationType] = Field(default=GenerationType.CHAT_COMPLETION)
     provider: Optional[str] = None
+
+    @property
+    def generation_type(self) -> GenerationType:
+        """Get the generation type from the inference parameters."""
+        return self.inference_parameters.generation_type
 
     @field_validator("inference_parameters", mode="before")
     @classmethod
     def _convert_inference_parameters(cls, value: Any) -> Any:
-        """Convert raw dict to appropriate inference parameters type without triggering deprecation warning."""
+        """Convert raw dict to appropriate inference parameters type based on field presence."""
         if isinstance(value, dict):
-            # Check if it has embedding-specific fields
+            # Infer type from presence of embedding-specific fields
             if "encoding_format" in value or "dimensions" in value:
                 return EmbeddingInferenceParams(**value)
-            # Otherwise use ChatCompletionInferenceParams
-            return ChatCompletionInferenceParams(**value)
+            else:
+                return ChatCompletionInferenceParams(**value)
         return value
-
-    @model_validator(mode="after")
-    def _validate_generation_type(self) -> Self:
-        generation_type_instance_map = {
-            GenerationType.CHAT_COMPLETION: ChatCompletionInferenceParams,
-            GenerationType.EMBEDDING: EmbeddingInferenceParams,
-        }
-        if self.generation_type not in generation_type_instance_map:
-            raise ValueError(f"Invalid generation type: {self.generation_type}")
-        if not isinstance(self.inference_parameters, generation_type_instance_map[self.generation_type]):
-            raise ValueError(
-                f"Inference parameters must be an instance of {generation_type_instance_map[self.generation_type].__name__!r} when generation_type is {self.generation_type!r}"
-            )
-        return self
 
 
 class ModelProvider(ConfigBase):

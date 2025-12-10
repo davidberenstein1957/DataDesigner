@@ -180,17 +180,18 @@ model_configs:
   - alias: llama3-70b
     model: meta/llama-3.1-70b-instruct
     provider: nvidia
-    generation_type: chat_completion
     inference_parameters:
+      generation_type: chat-completion
       temperature: 0.7
       top_p: 0.9
       max_tokens: 2048
       max_parallel_requests: 4
+      timeout: 60
   - alias: gpt-4
     model: gpt-4-turbo
     provider: openai
-    generation_type: chat_completion
     inference_parameters:
+      generation_type: chat-completion
       temperature: 0.8
       top_p: 0.95
       max_tokens: 4096
@@ -198,8 +199,8 @@ model_configs:
   - alias: embedder
     model: text-embedding-3-large
     provider: openai
-    generation_type: embedding
     inference_parameters:
+      generation_type: embedding
       encoding_format: float
       dimensions: 1024
       max_parallel_requests: 4

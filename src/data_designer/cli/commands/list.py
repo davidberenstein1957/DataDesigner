@@ -131,7 +131,6 @@ def display_models(model_repo: ModelRepository) -> None:
         table.add_column("Alias", style=NordColor.NORD14.value, no_wrap=True)
         table.add_column("Model ID", style=NordColor.NORD4.value)
         table.add_column("Provider", style=NordColor.NORD9.value, no_wrap=True)
-        table.add_column("Generation Type", style=NordColor.NORD9.value, no_wrap=True)
         table.add_column("Inference Parameters", style=NordColor.NORD15.value)
 
         for mc in registry.model_configs:
@@ -141,7 +140,6 @@ def display_models(model_repo: ModelRepository) -> None:
                 mc.alias,
                 mc.model,
                 mc.provider or "(default)",
-                mc.generation_type,
                 params_display,
             )
 

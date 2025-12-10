@@ -78,7 +78,7 @@ Common use cases:
 - **Anomaly detection**: Identify outliers in embedding space
 
 !!! note "Embedding Models"
-    Embedding columns require an embedding model configured with `generation_type="embedding"` and `EmbeddingInferenceParams`. These models differ from chat completion models—they output vectors rather than text.
+    Embedding columns require an embedding model configured with `EmbeddingInferenceParams`. These models differ from chat completion models—they output vectors rather than text. The generation type is automatically determined by the inference parameters type.
 
 ### 🧩 Expression Columns
 

@@ -270,23 +270,29 @@ def test_model_config_construction():
 
     # test construction with embedding inference parameters
     embedding_params = EmbeddingInferenceParams(dimensions=100)
-    model_config = ModelConfig(
-        alias="test", model="test", generation_type=GenerationType.EMBEDDING, inference_parameters=embedding_params
-    )
+    model_config = ModelConfig(alias="test", model="test", inference_parameters=embedding_params)
     assert model_config.inference_parameters == embedding_params
     assert model_config.generation_type == GenerationType.EMBEDDING
 
 
-def test_model_config_invalid_generation_type():
-    with pytest.raises(ValidationError, match="Input should be"):
-        ModelConfig(alias="test", model="test", generation_type="invalid_generation_type")
-    with pytest.raises(
-        ValidationError,
-        match="Inference parameters must be an instance of 'EmbeddingInferenceParams' when generation_type is 'embedding'",
-    ):
-        ModelConfig(
-            alias="test",
-            model="test",
-            generation_type=GenerationType.EMBEDDING,
-            inference_parameters=ChatCompletionInferenceParams(),
-        )
+def test_model_config_generation_type_from_dict():
+    # Test that generation_type in dict is used to create the right inference params type
+    model_config = ModelConfig.model_validate(
+        {
+            "alias": "test",
+            "model": "test",
+            "inference_parameters": {"generation_type": "embedding", "dimensions": 100},
+        }
+    )
+    assert isinstance(model_config.inference_parameters, EmbeddingInferenceParams)
+    assert model_config.generation_type == GenerationType.EMBEDDING
+
+    model_config = ModelConfig.model_validate(
+        {
+            "alias": "test",
+            "model": "test",
+            "inference_parameters": {"generation_type": "chat-completion", "temperature": 0.5},
+        }
+    )
+    assert isinstance(model_config.inference_parameters, ChatCompletionInferenceParams)
+    assert model_config.generation_type == GenerationType.CHAT_COMPLETION
