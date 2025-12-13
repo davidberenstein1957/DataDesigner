@@ -335,6 +335,7 @@ class HuggingFaceHubMixin:
         hf_dataset.push_to_hub(repo_id, token=resolved_token, **kwargs)
 
         # Push additional artifacts (analysis, processor datasets, configs)
+        # Pass the repo_id so we can list actual files for metadata sanitization
         self._upload_additional_artifacts(repo_id, resolved_token)
 
         # Generate and upload dataset card if requested
@@ -351,6 +352,61 @@ class HuggingFaceHubMixin:
             Resolved token or None if not found.
         """
         return _resolve_hf_token(token)
+
+    def _sanitize_metadata_file_paths(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Sanitize file paths in metadata by converting local paths to remote paths.
+
+        Args:
+            metadata: Metadata dictionary that may contain file_paths.
+
+        Returns:
+            Metadata dictionary with sanitized file paths.
+        """
+        if "file_paths" not in metadata or not isinstance(metadata["file_paths"], list):
+            return metadata
+
+        sanitized_paths = []
+        base_path = self.artifact_storage.base_dataset_path
+
+        for file_path in metadata["file_paths"]:
+            path_str = str(file_path)
+            path_obj = Path(path_str)
+
+            # Try to get relative path from base_dataset_path
+            try:
+                if path_obj.is_absolute():
+                    try:
+                        relative_path = path_obj.relative_to(base_path)
+                        remote_path = f"data/{relative_path.as_posix()}"
+                        sanitized_paths.append(remote_path)
+                        continue
+                    except ValueError:
+                        # Path is not relative to base_path, try fallback
+                        pass
+            except Exception:
+                # If Path operations fail, try string-based extraction
+                pass
+
+            # Fallback: extract directory structure from path string
+            if "parquet-files" in path_str:
+                idx = path_str.find("parquet-files")
+                if idx != -1:
+                    remaining = path_str[idx + len("parquet-files") :].lstrip("/\\")
+                    sanitized_paths.append(f"data/parquet-files/{remaining}")
+                else:
+                    sanitized_paths.append(f"data/parquet-files/{path_obj.name}")
+            else:
+                sanitized_paths.append(f"data/{path_obj.name}")
+
+        if sanitized_paths:
+            metadata = metadata.copy()
+            metadata["file_paths"] = sanitized_paths
+        else:
+            # If no paths could be sanitized, remove file_paths
+            metadata = metadata.copy()
+            metadata.pop("file_paths", None)
+
+        return metadata
 
     def _upload_additional_artifacts(
         self: Any,
@@ -409,38 +465,8 @@ class HuggingFaceHubMixin:
                     with open(metadata_path, "r") as f:
                         metadata = json.load(f)
 
-                    # Sanitize metadata: convert local file paths to Hugging Face Hub relative paths
-                    if "file_paths" in metadata and isinstance(metadata["file_paths"], list):
-                        # Convert absolute local paths to relative paths within the HF repo
-                        # Hugging Face datasets library manages the file structure when pushing
-                        # Files are typically stored as data/train-XXXXX-of-YYYYY.parquet
-                        # Since we don't know the exact naming ahead of time, we use a pattern
-                        # that matches the HF datasets structure
-                        sanitized_paths = []
-                        num_files = len(metadata["file_paths"])
-                        for idx, file_path in enumerate(metadata["file_paths"]):
-                            path_obj = Path(file_path)
-                            # Hugging Face uses format: data/train-XXXXX-of-YYYYY.parquet
-                            # where XXXXX is zero-padded file index and YYYYY is total files
-                            if "batch_" in path_obj.name:
-                                try:
-                                    # Extract batch number from filename
-                                    batch_num = path_obj.stem.split("_")[-1]
-                                    # Format as HF datasets style: train-00000-of-00001.parquet
-                                    sanitized_paths.append(
-                                        f"data/train-{batch_num.zfill(5)}-of-{str(num_files).zfill(5)}.parquet"
-                                    )
-                                except Exception:
-                                    # Fallback: use generic pattern
-                                    sanitized_paths.append(
-                                        f"data/train-{str(idx).zfill(5)}-of-{str(num_files).zfill(5)}.parquet"
-                                    )
-                            else:
-                                # Use generic HF datasets naming pattern
-                                sanitized_paths.append(
-                                    f"data/train-{str(idx).zfill(5)}-of-{str(num_files).zfill(5)}.parquet"
-                                )
-                        metadata["file_paths"] = sanitized_paths
+                    # Sanitize metadata: convert local file paths to remote Hugging Face Hub paths
+                    metadata = self._sanitize_metadata_file_paths(metadata)
 
                     # Write sanitized metadata to temp file and upload
                     with TemporaryDirectory() as tmpdir:
@@ -564,7 +590,7 @@ class HuggingFaceHubMixin:
                 "Ensure the class has _analysis and _config_builder attributes."
             )
 
-        # Load metadata if available
+        # Load metadata if available and sanitize file paths
         metadata: dict[str, Any] | None = None
         if hasattr(self, "artifact_storage") and hasattr(self.artifact_storage, "metadata_file_path"):
             metadata_path = self.artifact_storage.metadata_file_path
@@ -572,6 +598,8 @@ class HuggingFaceHubMixin:
                 try:
                     with open(metadata_path, "r") as f:
                         metadata = json.load(f)
+                    # Sanitize file paths for the dataset card
+                    metadata = self._sanitize_metadata_file_paths(metadata)
                 except Exception:
                     # If metadata can't be loaded, continue without it
                     pass
@@ -594,7 +622,7 @@ class HuggingFaceHubMixin:
         # Create card using DatasetCard.from_template with card_data and template_variables
         # DataDesignerDatasetCard extends DatasetCard and uses default_template_path
         # Unpack template_variables as kwargs for the template
-        tags_list = ["synthetic-data", "data-designer", "nemo", "synthetic", "nvidia"]
+        tags_list = ["datadesigner", "synthetic"]
         card = DataDesignerDatasetCard.from_template(
             card_data=DatasetCardData(
                 size_categories=_size_categories_parser(len(dataset_df)),
