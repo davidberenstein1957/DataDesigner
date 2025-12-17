@@ -652,7 +652,10 @@ class HuggingFaceHubClient:
             except (ValueError, TypeError):
                 continue
 
-        return {col_type: [pydantic_to_dict(stat) for stat in stats_list] for col_type, stats_list in column_stats_by_type.items()}
+        return {
+            col_type: [pydantic_to_dict(stat) for stat in stats_list]
+            for col_type, stats_list in column_stats_by_type.items()
+        }
 
     def _sort_column_types(self, column_stats_by_type: dict[str, list[dict[str, Any]]]) -> list[str]:
         """Sort column types by display order.
@@ -857,12 +860,8 @@ class HuggingFaceHubClient:
             processor_files = [f for f in repo_files if f.startswith("processors/")]
 
             processor_groups = HuggingFaceHubClient._group_processor_files(processor_files)
-            processor_datasets = HuggingFaceHubClient._download_processor_datasets(
-                repo_id, token, processor_groups
-            )
-            processor_artifacts = HuggingFaceHubClient._download_processor_artifacts(
-                repo_id, token, processor_groups
-            )
+            processor_datasets = HuggingFaceHubClient._download_processor_datasets(repo_id, token, processor_groups)
+            processor_artifacts = HuggingFaceHubClient._download_processor_artifacts(repo_id, token, processor_groups)
 
             return processor_datasets or None, processor_artifacts or None
         except (HfHubHTTPError, FileNotFoundError, Exception):

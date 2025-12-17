@@ -40,4 +40,3 @@ class HubDatasetResults:
 
     model_configs: list[dict[str, Any]] | None = None
     """Model configurations if available."""
-

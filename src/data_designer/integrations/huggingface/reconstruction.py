@@ -266,7 +266,5 @@ def _load_column_config(
     try:
         return config_class.model_validate(col_config_dict)
     except Exception as e:
-        logger.warning(
-            f"Failed to load column config '{col_config_dict.get('name', 'unknown')}': {e}. Skipping."
-        )
+        logger.warning(f"Failed to load column config '{col_config_dict.get('name', 'unknown')}': {e}. Skipping.")
         return None

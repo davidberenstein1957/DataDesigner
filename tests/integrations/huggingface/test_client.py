@@ -321,6 +321,7 @@ class TestHuggingFaceHubClient:
 
     def test_build_config_types_summary(self, client: HuggingFaceHubClient) -> None:
         """Test building config types summary."""
+
         class Config1:
             pass
 
@@ -352,9 +353,11 @@ class TestHuggingFaceHubClient:
         mock_hf_dataset.to_pandas.return_value = pd.DataFrame({"col1": [1, 2, 3]})
         mock_load_dataset.return_value = mock_hf_dataset
 
-        with patch.object(HuggingFaceHubClient, "_load_analysis_from_hub", return_value=None), patch.object(
-            HuggingFaceHubClient, "_load_processors_from_hub", return_value=(None, None)
-        ), patch.object(HuggingFaceHubClient, "_load_configs_from_hub", return_value=(None, None, None)):
+        with (
+            patch.object(HuggingFaceHubClient, "_load_analysis_from_hub", return_value=None),
+            patch.object(HuggingFaceHubClient, "_load_processors_from_hub", return_value=(None, None)),
+            patch.object(HuggingFaceHubClient, "_load_configs_from_hub", return_value=(None, None, None)),
+        ):
             result = HuggingFaceHubClient.pull_from_hub(
                 "test-user/test-dataset",
                 token="test-token",
